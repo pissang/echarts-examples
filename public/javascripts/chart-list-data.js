@@ -72,7 +72,6 @@ var EXAMPLES = [
       "bar"
     ],
     "id": "dataset-encode0",
-    "theme": "light",
     "title": "Simple Encode",
     "difficulty": 2
   },
@@ -82,7 +81,6 @@ var EXAMPLES = [
       "bar"
     ],
     "id": "dataset-series-layout-by",
-    "theme": "light",
     "title": "Series Layout By Column or Row",
     "difficulty": 2
   },
@@ -99,7 +97,6 @@ var EXAMPLES = [
       "dataset"
     ],
     "id": "dataset-encode1",
-    "theme": "light",
     "title": "Encode and Matrix",
     "difficulty": 3
   },
@@ -1446,7 +1443,6 @@ var EXAMPLES = [
       "scatter"
     ],
     "id": "scatter-large",
-    "theme": "light",
     "title": "Large Scatter",
     "difficulty": 10
   },

@@ -23,7 +23,6 @@ var emphasisStyle = {
 };
 
 option = {
-    backgroundColor: '#eee',
     legend: {
         data: ['bar', 'bar2', 'bar3', 'bar4'],
         left: 10
@@ -54,29 +53,6 @@ option = {
     },
     grid: {
         left: 100
-    },
-    visualMap: {
-        type: 'continuous',
-        dimension: 1,
-        text: ['High', 'Low'],
-        inverse: true,
-        itemHeight: 200,
-        calculable: true,
-        min: -2,
-        max: 6,
-        top: 60,
-        left: 10,
-        inRange: {
-            colorLightness: [0.4, 0.8]
-        },
-        outOfRange: {
-            color: '#bbb'
-        },
-        controller: {
-            inRange: {
-                color: '#2f4554'
-            }
-        }
     },
     series: [
         {

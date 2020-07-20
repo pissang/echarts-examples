@@ -47,7 +47,7 @@ function waitTime(time) {
 
 var BUILD_THUMBS = sourceFolder === 'data' && !args.no_thumb;
 // var BASE_PATH = 'http://localhost:8000/echarts/echarts-examples';
-var BASE_PATH = 'http://localhost/echarts-examples/';
+var BASE_PATH = 'http://localhost/echarts-examples-next/';
 var SCREENSHOT_PAGE_URL = `${BASE_PATH}/public/screenshot.html`;
 
 
@@ -143,7 +143,7 @@ var SCREENSHOT_PAGE_URL = `${BASE_PATH}/public/screenshot.html`;
                         await page.screenshot({
                             path: `${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`,
                             type: 'jpeg',
-                            quality: 70
+                            quality: 90
                         });
                     }
                     catch (e) {
