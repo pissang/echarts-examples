@@ -125,6 +125,7 @@ function initEditor() {
 
     gb.editor = ace.edit('code-panel');
     gb.editor.getSession().setMode('ace/mode/javascript');
+    gb.editor.setTheme("ace/theme/dracula");
 
     gb.editor.setOptions({
         enableBasicAutocompletion: true,

@@ -68,8 +68,6 @@ async function copyResourcesToDest(config) {
         cwd: basePath
     });
 
-    console.log();
-
     for (let filePath of filePaths) {
         fse.ensureDirSync(
             path.resolve(config.releaseDestDir, path.dirname(filePath))
@@ -132,19 +130,19 @@ async function buildHTML(config) {
     ];
     for (let lang of langs) {
         for (let item of srcFilePathList) {
-            doCompileAndWrite(item[0], `${lang}/${item[1]}`, lang);
+            doCompileAndWrite(item[0], `${item[1]}`, lang);
         }
     }
 
     // Redirect old links like https://echarts.apache.com/examples/editor.html?c=pie-legend
-    const srcOldFilePathList = [
-        ['views/old-redirect/view.jade', 'view.html'],
-        ['views/old-redirect/editor.jade', 'editor.html'],
-        ['views/old-redirect/index.jade', 'index.html']
-    ];
-    for (let item of srcOldFilePathList) {
-        doCompileAndWrite(item[0], item[1], 'en');
-    }
+    // const srcOldFilePathList = [
+    //     ['views/old-redirect/view.jade', 'view.html'],
+    //     ['views/old-redirect/editor.jade', 'editor.html'],
+    //     ['views/old-redirect/index.jade', 'index.html']
+    // ];
+    // for (let item of srcOldFilePathList) {
+    //     doCompileAndWrite(item[0], item[1], 'en');
+    // }
 
     function doCompileAndWrite(srcRelativePath, destRelativePath, lang) {
         let srcAbsolutePath = path.resolve(projectDir, srcRelativePath);
@@ -196,7 +194,7 @@ async function buildJS(config) {
         cwd: srcBaseDir
     });
 
-    for (filePath of filePaths) {
+    for (let filePath of filePaths) {
         let srcPath = path.resolve(srcBaseDir, filePath);
         let content = fs.readFileSync(srcPath, 'utf8');
 
