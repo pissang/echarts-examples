@@ -43,7 +43,6 @@ $.get(ROOT_PATH + '/data/asset/data/les-miserables.gexf', function (xml) {
                 links: graph.links,
                 categories: categories,
                 roam: true,
-                focusNodeAdjacency: true,
                 itemStyle: {
                     borderColor: '#fff',
                     borderWidth: 1,
@@ -59,6 +58,7 @@ $.get(ROOT_PATH + '/data/asset/data/les-miserables.gexf', function (xml) {
                     curveness: 0.3
                 },
                 emphasis: {
+                    focus: 'adjacency',
                     lineStyle: {
                         width: 10
                     }
