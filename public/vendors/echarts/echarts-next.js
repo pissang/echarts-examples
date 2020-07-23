@@ -1997,10 +1997,11 @@ class Storage3 {
   }
   getDisplayList(update, includeIgnore) {
     includeIgnore = includeIgnore || false;
-    if (update) {
+    const displayList = this._displayList;
+    if (update || !displayList.length) {
       this.updateDisplayList(includeIgnore);
     }
-    return this._displayList;
+    return displayList;
   }
   updateDisplayList(includeIgnore) {
     this._displayListLen = 0;
@@ -4619,38 +4620,52 @@ let textWidthCache = {};
 const DEFAULT_FONT = "12px sans-serif";
 let _ctx;
 let _cachedFont;
-function defaultMeasureText(text9, font) {
+function defaultMeasureText(text11, font) {
   if (!_ctx) {
     _ctx = createCanvas().getContext("2d");
   }
   if (_cachedFont !== font) {
     _cachedFont = _ctx.font = font || DEFAULT_FONT;
   }
-  return _ctx.measureText(text9);
+  return _ctx.measureText(text11);
 }
 let methods = {
   measureText: defaultMeasureText
 };
-function getWidth(text9, font) {
+function getWidth(text11, font) {
   font = font || DEFAULT_FONT;
   let cacheOfFont = textWidthCache[font];
   if (!cacheOfFont) {
     cacheOfFont = textWidthCache[font] = new LRU2(500);
   }
-  let width = cacheOfFont.get(text9);
+  let width = cacheOfFont.get(text11);
   if (width == null) {
-    width = methods.measureText(text9, font).width;
-    cacheOfFont.put(text9, width);
+    width = methods.measureText(text11, font).width;
+    cacheOfFont.put(text11, width);
   }
   return width;
 }
-function getBoundingRect(text9, font, textAlign, textBaseline) {
-  const width = getWidth(text9, font);
+function innerGetBoundingRect(text11, font, textAlign, textBaseline) {
+  const width = getWidth(text11, font);
   const height = getLineHeight(font);
   const x = adjustTextX(0, width, textAlign);
   const y = adjustTextY(0, height, textBaseline);
   const rect = new BoundingRect_default(x, y, width, height);
   return rect;
+}
+function getBoundingRect(text11, font, textAlign, textBaseline) {
+  const textLines = ((text11 || "") + "").split("\n");
+  const len2 = textLines.length;
+  if (len2 === 1) {
+    return innerGetBoundingRect(textLines[0], font, textAlign, textBaseline);
+  } else {
+    const uniondRect = new BoundingRect_default(0, 0, 0, 0);
+    for (let i = 0; i < textLines.length; i++) {
+      const rect = innerGetBoundingRect(textLines[i], font, textAlign, textBaseline);
+      i === 0 ? uniondRect.copy(rect) : uniondRect.union(rect);
+    }
+    return uniondRect;
+  }
 }
 function adjustTextX(x, width, textAlign) {
   if (textAlign === "right") {
@@ -5056,11 +5071,11 @@ class Element {
     return this.states[name];
   }
   ensureState(name) {
-    const states34 = this.states;
-    if (!states34[name]) {
-      states34[name] = {};
+    const states36 = this.states;
+    if (!states36[name]) {
+      states36[name] = {};
     }
-    return states34[name];
+    return states36[name];
   }
   clearStates() {
     this.useState(PRESERVED_NORMAL_STATE, false);
@@ -5090,7 +5105,11 @@ class Element {
     if (!toNormalState) {
       this.saveCurrentToNormalState(state);
     }
-    this._applyStateObj(stateName, state, this._normalState, keepCurrentStates, animationCfg && animationCfg.duration > 0, animationCfg);
+    const useHoverLayer = !!(state && state.hoverLayer);
+    if (useHoverLayer) {
+      this._toggleHoverLayerFlag(true);
+    }
+    this._applyStateObj(stateName, state, this._normalState, keepCurrentStates, !this.__inHover && animationCfg && animationCfg.duration > 0, animationCfg);
     if (this._textContent) {
       this._textContent.useState(stateName, keepCurrentStates);
     }
@@ -5109,19 +5128,23 @@ class Element {
     }
     this._updateAnimationTargets();
     this.markRedraw();
+    if (!useHoverLayer && this.__inHover) {
+      this._toggleHoverLayerFlag(false);
+      this.__dirty &= ~Element.REDARAW_BIT;
+    }
     return state;
   }
-  useStates(states34) {
-    if (!states34.length) {
+  useStates(states36) {
+    if (!states36.length) {
       this.clearStates();
     } else {
       const stateObjects = [];
       const currentStates = this.currentStates;
-      const len2 = states34.length;
+      const len2 = states36.length;
       let notChange = len2 === currentStates.length;
       if (notChange) {
         for (let i = 0; i < len2; i++) {
-          if (states34[i] !== currentStates[i]) {
+          if (states36[i] !== currentStates[i]) {
             notChange = false;
             break;
           }
@@ -5131,10 +5154,10 @@ class Element {
         return;
       }
       for (let i = 0; i < len2; i++) {
-        const stateName = states34[i];
+        const stateName = states36[i];
         let stateObj;
         if (this.stateProxy) {
-          stateObj = this.stateProxy(stateName, states34);
+          stateObj = this.stateProxy(stateName, states36);
         }
         if (!stateObj) {
           stateObj = this.states[stateName];
@@ -5143,19 +5166,27 @@ class Element {
           stateObjects.push(stateObj);
         }
       }
+      const useHoverLayer = !!(stateObjects[len2 - 1] && stateObjects[len2 - 1].hoverLayer);
+      if (useHoverLayer) {
+        this._toggleHoverLayerFlag(true);
+      }
       const mergedState = this._mergeStates(stateObjects);
       const animationCfg = this.stateTransition;
       this.saveCurrentToNormalState(mergedState);
-      this._applyStateObj(states34.join(","), mergedState, this._normalState, false, animationCfg && animationCfg.duration > 0, animationCfg);
+      this._applyStateObj(states36.join(","), mergedState, this._normalState, false, !this.__inHover && animationCfg && animationCfg.duration > 0, animationCfg);
       if (this._textContent) {
-        this._textContent.useStates(states34);
+        this._textContent.useStates(states36);
       }
       if (this._textGuide) {
-        this._textGuide.useStates(states34);
+        this._textGuide.useStates(states36);
       }
       this._updateAnimationTargets();
-      this.currentStates = states34.slice();
+      this.currentStates = states36.slice();
       this.markRedraw();
+      if (!useHoverLayer) {
+        this._toggleHoverLayerFlag(false);
+        this.__dirty &= ~Element.REDARAW_BIT;
+      }
     }
   }
   _updateAnimationTargets() {
@@ -5196,11 +5227,11 @@ class Element {
       this.removeState(state);
     }
   }
-  _mergeStates(states34) {
+  _mergeStates(states36) {
     const mergedState = {};
     let mergedTextConfig;
-    for (let i = 0; i < states34.length; i++) {
-      const state = states34[i];
+    for (let i = 0; i < states36.length; i++) {
+      const state = states36[i];
       extend(mergedState, state);
       if (state.textConfig) {
         mergedTextConfig = mergedTextConfig || {};
@@ -5353,13 +5384,31 @@ class Element {
   }
   markRedraw() {
     this.__dirty |= Element.REDARAW_BIT;
-    this.__zr && this.__zr.refresh();
+    const zr = this.__zr;
+    if (zr) {
+      if (this.__inHover) {
+        zr.refreshHover();
+      } else {
+        zr.refresh();
+      }
+    }
     if (this.__hostTarget) {
       this.__hostTarget.markRedraw();
     }
   }
   dirty() {
     this.markRedraw();
+  }
+  _toggleHoverLayerFlag(inHover) {
+    this.__inHover = inHover;
+    const textContent = this._textContent;
+    const textGuide = this._textGuide;
+    if (textContent) {
+      textContent.__inHover = inHover;
+    }
+    if (textGuide) {
+      textGuide.__inHover = inHover;
+    }
   }
   addSelfToZr(zr) {
     this.__zr = zr;
@@ -5468,6 +5517,7 @@ Element.initDefaultProps = function() {
   elProto.isGroup = false;
   elProto.draggable = false;
   elProto.dragging = false;
+  elProto.__inHover = false;
   elProto.__dirty = Element.REDARAW_BIT;
   const logs = {};
   function logDeprecatedError(key, xKey, yKey) {
@@ -5767,7 +5817,7 @@ class Displayable11 extends Element_default {
     this.dirtyStyle();
   }
   styleChanged() {
-    return this.__dirty & Displayable11.STYLE_CHANGED_BIT;
+    return !!(this.__dirty & Displayable11.STYLE_CHANGED_BIT);
   }
   styleUpdated() {
     this.__dirty &= ~Displayable11.STYLE_CHANGED_BIT;
@@ -5779,7 +5829,11 @@ class Displayable11 extends Element_default {
     if (!obj[STYLE_MAGIC_KEY]) {
       obj = this.createStyle(obj);
     }
-    this.style = obj;
+    if (this.__inHover) {
+      this.__hoverStyle = obj;
+    } else {
+      this.style = obj;
+    }
     this.dirtyStyle();
   }
   isStyleObject(obj) {
@@ -5836,7 +5890,6 @@ class Displayable11 extends Element_default {
         }, animationCfg, this._getAnimationStyleProps());
       } else {
         this.useStyle(targetStyle);
-        this.dirtyStyle();
       }
     }
     for (let i = 0; i < PRIMARY_STATES_KEYS2.length; i++) {
@@ -5850,11 +5903,11 @@ class Displayable11 extends Element_default {
       }
     }
   }
-  _mergeStates(states34) {
-    const mergedState = super._mergeStates(states34);
+  _mergeStates(states36) {
+    const mergedState = super._mergeStates(states36);
     let mergedStyle;
-    for (let i = 0; i < states34.length; i++) {
-      const state = states34[i];
+    for (let i = 0; i < states36.length; i++) {
+      const state = states36[i];
       if (state.style) {
         mergedStyle = mergedStyle || {};
         this._mergeStyle(mergedStyle, state.style);
@@ -6457,18 +6510,6 @@ class PathProxy2 {
   }
   arc(cx, cy, r, startAngle, endAngle, anticlockwise) {
     let delta = endAngle - startAngle;
-    if (delta < 0) {
-      const n = Math.round(delta / PI * 1e+06) / 1e+06;
-      delta = PI24 + n % 2 * PI;
-    } else {
-      delta = mathMin2(delta, PI24);
-    }
-    if (anticlockwise && delta > 0) {
-      delta = delta - PI24;
-      if (Math.abs(delta) < 1e-06) {
-        delta = delta - PI24;
-      }
-    }
     endAngle = startAngle + delta;
     this.addData(CMD2.A, cx, cy, r, r, startAngle, delta, 0, anticlockwise ? 0 : 1);
     this._ctx && this._ctx.arc(cx, cy, r, startAngle, endAngle, anticlockwise);
@@ -7572,12 +7613,12 @@ class Path10 extends Displayable_default {
   }
   hasStroke() {
     const style2 = this.style;
-    const stroke = "stroke" in style2 ? style2.stroke : DEFAULT_PATH_STYLE.stroke;
-    return stroke != null && stroke !== "none" && style2.lineWidth > 0;
+    const stroke = style2.stroke;
+    return !(stroke == null || stroke === "none" || !(style2.lineWidth > 0));
   }
   hasFill() {
     const style2 = this.style;
-    const fill = "fill" in style2 ? style2.fill : DEFAULT_PATH_STYLE.fill;
+    const fill = style2.fill;
     return fill != null && fill !== "none";
   }
   getBoundingRect() {
@@ -7689,7 +7730,7 @@ class Path10 extends Displayable_default {
     return this;
   }
   shapeChanged() {
-    return this.__dirty & Path10.SHAPE_CHANGED_BIT;
+    return !!(this.__dirty & Path10.SHAPE_CHANGED_BIT);
   }
   createStyle(obj) {
     return createObject(DEFAULT_PATH_STYLE, obj);
@@ -7742,11 +7783,11 @@ class Path10 extends Displayable_default {
       }
     }
   }
-  _mergeStates(states34) {
-    const mergedState = super._mergeStates(states34);
+  _mergeStates(states36) {
+    const mergedState = super._mergeStates(states36);
     let mergedShape;
-    for (let i = 0; i < states34.length; i++) {
-      const state = states34[i];
+    for (let i = 0; i < states36.length; i++) {
+      const state = states36[i];
       if (state.shape) {
         mergedShape = mergedShape || {};
         this._mergeStyle(mergedShape, state.shape);
@@ -8907,7 +8948,7 @@ const DEFAULT_TSPAN_STYLE = defaults({
   textAlign: "left",
   textBaseline: "top"
 }, DEFAULT_PATH_STYLE);
-class TSpan5 extends Displayable_default {
+class TSpan3 extends Displayable_default {
   hasStroke() {
     const style2 = this.style;
     const stroke = style2.stroke;
@@ -8927,9 +8968,9 @@ class TSpan5 extends Displayable_default {
   getBoundingRect() {
     const style2 = this.style;
     if (!this._rect) {
-      let text9 = style2.text;
-      text9 != null ? text9 += "" : text9 = "";
-      const rect = getBoundingRect(text9, style2.font, style2.textAlign, style2.textBaseline);
+      let text11 = style2.text;
+      text11 != null ? text11 += "" : text11 = "";
+      const rect = getBoundingRect(text11, style2.font, style2.textAlign, style2.textBaseline);
       rect.x += style2.x || 0;
       rect.y += style2.y || 0;
       if (this.hasStroke()) {
@@ -8944,8 +8985,8 @@ class TSpan5 extends Displayable_default {
     return this._rect;
   }
 }
-TSpan5.prototype.type = "tspan";
-const TSpan_default = TSpan5;
+TSpan3.prototype.type = "tspan";
+const TSpan_default = TSpan3;
 
 // node_modules/zrender/src/tool/parseSVG.ts
 const DILIMITER_REG = /[\s,]+/;
@@ -9081,28 +9122,28 @@ class SVGParser {
       this._textX += parseFloat(dx);
       this._textY += parseFloat(dy);
     }
-    const text9 = new TSpan_default({
+    const text11 = new TSpan_default({
       style: {
         text: xmlNode.textContent
       },
       x: this._textX || 0,
       y: this._textY || 0
     });
-    inheritStyle(parentGroup, text9);
-    parseAttributes(xmlNode, text9, this._defs);
-    const textStyle2 = text9.style;
+    inheritStyle(parentGroup, text11);
+    parseAttributes(xmlNode, text11, this._defs);
+    const textStyle2 = text11.style;
     const fontSize = textStyle2.fontSize;
     if (fontSize && fontSize < 9) {
       textStyle2.fontSize = 9;
-      text9.scaleX *= fontSize / 9;
-      text9.scaleY *= fontSize / 9;
+      text11.scaleX *= fontSize / 9;
+      text11.scaleY *= fontSize / 9;
     }
     const font = (textStyle2.fontSize || textStyle2.fontFamily) && [textStyle2.fontStyle, textStyle2.fontWeight, (textStyle2.fontSize || 12) + "px", textStyle2.fontFamily || "sans-serif"].join(" ");
     textStyle2.font = font;
-    const rect = text9.getBoundingRect();
+    const rect = text11.getBoundingRect();
     this._textX += rect.width;
-    parentGroup.add(text9);
-    return text9;
+    parentGroup.add(text11);
+    return text11;
   }
 }
 SVGParser.internalField = function() {
@@ -9658,11 +9699,11 @@ function isImageReady(image2) {
 
 // node_modules/zrender/src/graphic/helper/parseText.ts
 const STYLE_REG = /\{([a-zA-Z0-9_]+)\|([^}]*)\}/g;
-function truncateText(text9, containerWidth, font, ellipsis, options) {
+function truncateText(text11, containerWidth, font, ellipsis, options) {
   if (!containerWidth) {
     return "";
   }
-  const textLines = (text9 + "").split("\n");
+  const textLines = (text11 + "").split("\n");
   options = prepareTruncateOptions(containerWidth, font, ellipsis, options);
   for (let i = 0, len2 = textLines.length; i < len2; i++) {
     textLines[i] = truncateSingleLine(textLines[i], options);
@@ -9720,43 +9761,36 @@ function truncateSingleLine(textLine, options) {
   }
   return textLine;
 }
-function estimateLength(text9, contentWidth, ascCharWidth, cnCharWidth) {
+function estimateLength(text11, contentWidth, ascCharWidth, cnCharWidth) {
   let width = 0;
   let i = 0;
-  for (let len2 = text9.length; i < len2 && width < contentWidth; i++) {
-    const charCode = text9.charCodeAt(i);
+  for (let len2 = text11.length; i < len2 && width < contentWidth; i++) {
+    const charCode = text11.charCodeAt(i);
     width += 0 <= charCode && charCode <= 127 ? ascCharWidth : cnCharWidth;
   }
   return i;
 }
-function parsePlainText(text9, style2) {
-  text9 != null && (text9 += "");
+function parsePlainText(text11, style2) {
+  text11 != null && (text11 += "");
   const overflow = style2.overflow;
   const padding = style2.padding;
   const font = style2.font;
   const truncate = overflow === "truncate";
   const calculatedLineHeight = getLineHeight(font);
   const lineHeight = retrieve2(style2.lineHeight, calculatedLineHeight);
+  const truncateLineOverflow = style2.lineOverflow === "truncate";
   let width = style2.width;
   let lines2;
   if (width != null && overflow === "break" || overflow === "breakAll") {
-    lines2 = text9 ? wrapText(text9, style2.font, width, overflow === "breakAll", 0).lines : [];
+    lines2 = text11 ? wrapText(text11, style2.font, width, overflow === "breakAll", 0).lines : [];
   } else {
-    lines2 = text9 ? text9.split("\n") : [];
+    lines2 = text11 ? text11.split("\n") : [];
   }
   const contentHeight = lines2.length * lineHeight;
   const height = retrieve2(style2.height, contentHeight);
-  if (contentHeight > height && style2.lineOverflow === "truncate") {
+  if (contentHeight > height && truncateLineOverflow) {
     const lineCount = Math.floor(height / lineHeight);
-    const lastLine = lines2.slice(lineCount - 1).join("");
     lines2 = lines2.slice(0, lineCount);
-    if (style2.ellipsis) {
-      const options = prepareTruncateOptions(width, font, style2.ellipsis, {
-        minChar: style2.truncateMinChar,
-        placeholder: style2.placeholder
-      });
-      lines2[lineCount - 1] = truncateSingleLine(lastLine, options);
-    }
   }
   let outerHeight = height;
   let outerWidth = width;
@@ -9766,7 +9800,7 @@ function parsePlainText(text9, style2) {
       outerWidth += padding[1] + padding[3];
     }
   }
-  if (text9 && truncate && outerWidth != null) {
+  if (text11 && truncate && outerWidth != null) {
     const options = prepareTruncateOptions(width, font, style2.ellipsis, {
       minChar: style2.truncateMinChar,
       placeholder: style2.placeholder
@@ -9813,10 +9847,10 @@ class RichTextContentBlock {
     this.lines = [];
   }
 }
-function parseRichText(text9, style2) {
+function parseRichText(text11, style2) {
   const contentBlock = new RichTextContentBlock();
-  text9 != null && (text9 += "");
-  if (!text9) {
+  text11 != null && (text11 += "");
+  if (!text11) {
     return contentBlock;
   }
   const topWidth = style2.width;
@@ -9829,16 +9863,16 @@ function parseRichText(text9, style2) {
   } : null;
   let lastIndex = STYLE_REG.lastIndex = 0;
   let result;
-  while ((result = STYLE_REG.exec(text9)) != null) {
+  while ((result = STYLE_REG.exec(text11)) != null) {
     const matchedIndex = result.index;
     if (matchedIndex > lastIndex) {
-      pushTokens(contentBlock, text9.substring(lastIndex, matchedIndex), style2, wrapInfo);
+      pushTokens(contentBlock, text11.substring(lastIndex, matchedIndex), style2, wrapInfo);
     }
     pushTokens(contentBlock, result[2], style2, wrapInfo, result[1]);
     lastIndex = STYLE_REG.lastIndex;
   }
-  if (lastIndex < text9.length) {
-    pushTokens(contentBlock, text9.substring(lastIndex, text9.length), style2, wrapInfo);
+  if (lastIndex < text11.length) {
+    pushTokens(contentBlock, text11.substring(lastIndex, text11.length), style2, wrapInfo);
   }
   let pendingList = [];
   let calculatedHeight = 0;
@@ -9860,11 +9894,11 @@ function parseRichText(text9, style2) {
         const font = token.font = tokenStyle.font || style2.font;
         token.contentHeight = getLineHeight(font);
         let tokenHeight = retrieve2(tokenStyle.height, token.contentHeight);
+        token.lineHeight = retrieve3(tokenStyle.lineHeight, style2.lineHeight, tokenHeight);
         textPadding && (tokenHeight += textPadding[0] + textPadding[2]);
         token.height = tokenHeight;
-        token.lineHeight = retrieve3(tokenStyle.lineHeight, style2.lineHeight, tokenHeight);
-        token.textAlign = tokenStyle && tokenStyle.align || style2.align;
-        token.textVerticalAlign = tokenStyle && tokenStyle.verticalAlign || "middle";
+        token.align = tokenStyle && tokenStyle.align || style2.align;
+        token.verticalAlign = tokenStyle && tokenStyle.verticalAlign || "middle";
         if (truncateLine && topHeight != null && calculatedHeight + token.lineHeight > topHeight) {
           if (j > 0) {
             line3.tokens = line3.tokens.slice(0, j);
@@ -9906,7 +9940,8 @@ function parseRichText(text9, style2) {
             token.contentWidth = getWidth(token.text, font);
           }
         }
-        lineWidth += token.width + paddingH;
+        token.width += paddingH;
+        lineWidth += token.width;
         tokenStyle && (lineHeight = Math.max(lineHeight, token.lineHeight));
         prevToken = token;
       }
@@ -9960,20 +9995,20 @@ function pushTokens(block, str, style2, wrapInfo, styleName) {
     strLines = str.split("\n");
   }
   for (let i = 0; i < strLines.length; i++) {
-    const text9 = strLines[i];
+    const text11 = strLines[i];
     const token = new RichTextToken();
     token.styleName = styleName;
-    token.text = text9;
-    token.isLineHolder = !text9 && !isEmptyStr;
+    token.text = text11;
+    token.isLineHolder = !text11 && !isEmptyStr;
     if (typeof tokenStyle.width === "number") {
       token.width = tokenStyle.width;
     } else {
-      token.width = linesWidths ? linesWidths[i] : getWidth(text9, font);
+      token.width = linesWidths ? linesWidths[i] : getWidth(text11, font);
     }
     if (!i && !newLine) {
       const tokens = (lines2[lines2.length - 1] || (lines2[0] = new RichTextLine())).tokens;
       const tokensLen = tokens.length;
-      tokensLen === 1 && tokens[0].isLineHolder ? tokens[0] = token : (text9 || !tokensLen || isEmptyStr) && tokens.push(token);
+      tokensLen === 1 && tokens[0].isLineHolder ? tokens[0] = token : (text11 || !tokensLen || isEmptyStr) && tokens.push(token);
     } else {
       lines2.push(new RichTextLine([token]));
     }
@@ -9996,15 +10031,15 @@ function isWordBreakChar(ch) {
   }
   return true;
 }
-function wrapText(text9, font, lineWidth, isBreakAll, lastAccumWidth) {
+function wrapText(text11, font, lineWidth, isBreakAll, lastAccumWidth) {
   let lines2 = [];
   let linesWidths = [];
   let line3 = "";
   let currentWord = "";
   let currentWordWidth = 0;
   let accumWidth = 0;
-  for (let i = 0; i < text9.length; i++) {
-    const ch = text9.charAt(i);
+  for (let i = 0; i < text11.length; i++) {
+    const ch = text11.charAt(i);
     if (ch === "\n") {
       if (currentWord) {
         line3 += currentWord;
@@ -10074,7 +10109,7 @@ function wrapText(text9, font, lineWidth, isBreakAll, lastAccumWidth) {
     }
   }
   if (!lines2.length && !line3) {
-    line3 = text9;
+    line3 = text11;
     currentWord = "";
     currentWordWidth = 0;
   }
@@ -10268,8 +10303,8 @@ class ZRText2 extends Displayable_default {
     const style2 = this.style;
     const textFont = style2.font || DEFAULT_FONT;
     const textPadding = style2.padding;
-    const text9 = getStyleText(style2);
-    const contentBlock = parsePlainText(text9, style2);
+    const text11 = getStyleText(style2);
+    const contentBlock = parsePlainText(text11, style2);
     const needDrawBg = needDrawBackground(style2);
     const bgColorDrawn = !!style2.backgroundColor;
     let outerHeight = contentBlock.outerHeight;
@@ -10279,20 +10314,25 @@ class ZRText2 extends Displayable_default {
     const baseX = style2.x || 0;
     const baseY = style2.y || 0;
     const textAlign = style2.align || defaultStyle.align || "left";
-    const textVerticalAlign = style2.verticalAlign || defaultStyle.verticalAlign;
+    const verticalAlign = style2.verticalAlign || defaultStyle.verticalAlign || "top";
     let textX = baseX;
-    let textY = adjustTextY(baseY, contentBlock.contentHeight, textVerticalAlign);
+    let textY = adjustTextY(baseY, contentBlock.contentHeight, verticalAlign);
     if (needDrawBg || textPadding) {
       let outerWidth = contentBlock.width;
       textPadding && (outerWidth += textPadding[1] + textPadding[3]);
       const boxX = adjustTextX(baseX, outerWidth, textAlign);
-      const boxY = adjustTextY(baseY, outerHeight, textVerticalAlign);
+      const boxY = adjustTextY(baseY, outerHeight, verticalAlign);
       needDrawBg && this._renderBackground(style2, boxX, boxY, outerWidth, outerHeight);
-      if (textPadding) {
-        textX = getTextXForPadding(baseX, textAlign, textPadding);
-      }
     }
     textY += lineHeight / 2;
+    if (textPadding) {
+      textX = getTextXForPadding(baseX, textAlign, textPadding);
+      if (verticalAlign === "top") {
+        textY += textPadding[0];
+      } else if (verticalAlign === "bottom") {
+        textY -= textPadding[2];
+      }
+    }
     let defaultLineWidth = 0;
     let useDefaultFill = false;
     const textFill = getFill("fill" in style2 ? style2.fill : (useDefaultFill = true, defaultStyle.fill));
@@ -10335,8 +10375,8 @@ class ZRText2 extends Displayable_default {
   }
   _updateRichTexts() {
     const style2 = this.style;
-    const text9 = getStyleText(style2);
-    const contentBlock = parseRichText(text9, style2);
+    const text11 = getStyleText(style2);
+    const contentBlock = parseRichText(text11, style2);
     const contentWidth = contentBlock.width;
     const outerWidth = contentBlock.outerWidth;
     const outerHeight = contentBlock.outerHeight;
@@ -10345,11 +10385,11 @@ class ZRText2 extends Displayable_default {
     const baseY = style2.y || 0;
     const defaultStyle = this._defaultStyle;
     const textAlign = style2.align || defaultStyle.align;
-    const textVerticalAlign = style2.verticalAlign || defaultStyle.verticalAlign;
+    const verticalAlign = style2.verticalAlign || defaultStyle.verticalAlign;
     const boxX = adjustTextX(baseX, outerWidth, textAlign);
-    const boxY = adjustTextY(baseY, outerHeight, textVerticalAlign);
+    const boxY = adjustTextY(baseY, outerHeight, verticalAlign);
     let xLeft = adjustTextX(baseX, contentBlock.contentWidth, textAlign);
-    let lineTop = adjustTextY(baseY, contentBlock.contentHeight, textVerticalAlign);
+    let lineTop = adjustTextY(baseY, contentBlock.contentHeight, verticalAlign);
     const xRight = xLeft + contentWidth;
     if (needDrawBackground(style2)) {
       this._renderBackground(style2, boxX, boxY, outerWidth, outerHeight);
@@ -10360,25 +10400,25 @@ class ZRText2 extends Displayable_default {
       const tokens = line3.tokens;
       const tokenCount = tokens.length;
       const lineHeight = line3.lineHeight;
-      let usedWidth = line3.width;
+      let remainedWidth = line3.width;
       let leftIndex = 0;
       let lineXLeft = xLeft;
       let lineXRight = xRight;
       let rightIndex = tokenCount - 1;
       let token;
-      while (leftIndex < tokenCount && (token = tokens[leftIndex], !token.textAlign || token.textAlign === "left")) {
+      while (leftIndex < tokenCount && (token = tokens[leftIndex], !token.align || token.align === "left")) {
         this._placeToken(token, style2, lineHeight, lineTop, lineXLeft, "left", bgColorDrawn);
-        usedWidth -= token.width;
+        remainedWidth -= token.width;
         lineXLeft += token.width;
         leftIndex++;
       }
-      while (rightIndex >= 0 && (token = tokens[rightIndex], token.textAlign === "right")) {
+      while (rightIndex >= 0 && (token = tokens[rightIndex], token.align === "right")) {
         this._placeToken(token, style2, lineHeight, lineTop, lineXRight, "right", bgColorDrawn);
-        usedWidth -= token.width;
+        remainedWidth -= token.width;
         lineXRight -= token.width;
         rightIndex--;
       }
-      lineXLeft += (contentWidth - (lineXLeft - xLeft) - (xRight - lineXRight) - usedWidth) / 2;
+      lineXLeft += (contentWidth - (lineXLeft - xLeft) - (xRight - lineXRight) - remainedWidth) / 2;
       while (leftIndex <= rightIndex) {
         token = tokens[leftIndex];
         this._placeToken(token, style2, lineHeight, lineTop, lineXLeft + token.width / 2, "center", bgColorDrawn);
@@ -10391,11 +10431,11 @@ class ZRText2 extends Displayable_default {
   _placeToken(token, style2, lineHeight, lineTop, x, textAlign, parentBgColorDrawn) {
     const tokenStyle = style2.rich[token.styleName] || {};
     tokenStyle.text = token.text;
-    const textVerticalAlign = token.textVerticalAlign;
+    const verticalAlign = token.verticalAlign;
     let y = lineTop + lineHeight / 2;
-    if (textVerticalAlign === "top") {
+    if (verticalAlign === "top") {
       y = lineTop + token.height / 2;
-    } else if (textVerticalAlign === "bottom") {
+    } else if (verticalAlign === "bottom") {
       y = lineTop + lineHeight - token.height / 2;
     }
     const needDrawBg = !token.isLineHolder && needDrawBackground(tokenStyle);
@@ -10404,7 +10444,6 @@ class ZRText2 extends Displayable_default {
     const textPadding = token.textPadding;
     if (textPadding) {
       x = getTextXForPadding(x, textAlign, textPadding);
-      y -= token.height / 2 - textPadding[2] - token.height / 2;
     }
     const el = this._getOrCreateChild(TSpan_default);
     const subElStyle = el.createStyle();
@@ -10489,7 +10528,18 @@ class ZRText2 extends Displayable_default {
     shadowStyle.shadowOffsetY = style2.shadowOffsetY || 0;
   }
   static makeFont(style2) {
-    const font = (style2.fontSize || style2.fontFamily || style2.fontWeight) && [style2.fontStyle, style2.fontWeight, (style2.fontSize == null ? 12 : style2.fontSize) + "px", style2.fontFamily || "sans-serif"].join(" ");
+    let font = "";
+    if (style2.fontSize || style2.fontFamily || style2.fontWeight) {
+      let fontSize = "";
+      if (typeof style2.fontSize === "string" && (style2.fontSize.indexOf("px") !== -1 || style2.fontSize.indexOf("rem") !== -1 || style2.fontSize.indexOf("em") !== -1)) {
+        fontSize = style2.fontSize;
+      } else if (!isNaN(+style2.fontSize)) {
+        fontSize = style2.fontSize + "px";
+      } else {
+        fontSize = "12px";
+      }
+      font = [style2.fontStyle, style2.fontWeight, fontSize, style2.fontFamily || "sans-serif"].join(" ");
+    }
     return font && trim(font) || style2.textFont || style2.font;
   }
 }
@@ -10514,9 +10564,9 @@ function normalizeStyle(style2) {
     let textAlign = style2.align;
     textAlign === "middle" && (textAlign = "center");
     style2.align = textAlign == null || VALID_TEXT_ALIGN[textAlign] ? textAlign : "left";
-    let textVerticalAlign = style2.verticalAlign;
-    textVerticalAlign === "center" && (textVerticalAlign = "middle");
-    style2.verticalAlign = textVerticalAlign == null || VALID_TEXT_VERTICAL_ALIGN[textVerticalAlign] ? textVerticalAlign : "top";
+    let verticalAlign = style2.verticalAlign;
+    verticalAlign === "center" && (verticalAlign = "middle");
+    style2.verticalAlign = verticalAlign == null || VALID_TEXT_VERTICAL_ALIGN[verticalAlign] ? verticalAlign : "top";
     const textPadding = style2.padding;
     if (textPadding) {
       style2.padding = normalizeCssArray(style2.padding);
@@ -10533,9 +10583,9 @@ function getTextXForPadding(x, textAlign, textPadding) {
   return textAlign === "right" ? x - textPadding[1] : textAlign === "center" ? x + textPadding[3] / 2 - textPadding[1] / 2 : x + textPadding[3];
 }
 function getStyleText(style2) {
-  let text9 = style2.text;
-  text9 != null && (text9 += "");
-  return text9;
+  let text11 = style2.text;
+  text11 != null && (text11 += "");
+  return text11;
 }
 function needDrawBackground(style2) {
   return !!(style2.backgroundColor || style2.borderWidth && style2.borderColor);
@@ -11205,9 +11255,9 @@ class ZRender {
     el.removeSelfFromZr(this);
     this._needsRefresh = true;
   }
-  configLayer(zLevel, config56) {
+  configLayer(zLevel, config58) {
     if (this.painter.configLayer) {
-      this.painter.configLayer(zLevel, config56);
+      this.painter.configLayer(zLevel, config58);
     }
     this._needsRefresh = true;
   }
@@ -11232,9 +11282,9 @@ class ZRender {
     if (!fromInside) {
       this.animation.update();
     }
-    this._needsRefresh = this._needsRefreshHover = false;
+    this._needsRefresh = false;
     this.painter.refresh();
-    this._needsRefresh = this._needsRefreshHover = false;
+    this._needsRefresh = false;
   }
   refresh() {
     this._needsRefresh = true;
@@ -11264,24 +11314,11 @@ class ZRender {
     this.animation.start();
     this._stillFrameAccum = 0;
   }
-  addHover(el, hoverStyle) {
-    if (this.painter.addHover) {
-      const elMirror = this.painter.addHover(el, hoverStyle);
-      this.refreshHover();
-      return elMirror;
-    }
+  addHover(el) {
   }
   removeHover(el) {
-    if (this.painter.removeHover) {
-      this.painter.removeHover(el);
-      this.refreshHover();
-    }
   }
   clearHover() {
-    if (this.painter.clearHover) {
-      this.painter.clearHover();
-      this.refreshHover();
-    }
   }
   refreshHover() {
     this._needsRefreshHover = true;
@@ -11489,10 +11526,10 @@ function getPrecisionSafe(val) {
   }
 }
 function getPixelPrecision(dataExtent, pixelExtent) {
-  const log6 = Math.log;
+  const log9 = Math.log;
   const LN10 = Math.LN10;
-  const dataQuantity = Math.floor(log6(dataExtent[1] - dataExtent[0]) / LN10);
-  const sizeQuantity = Math.round(log6(Math.abs(pixelExtent[1] - pixelExtent[0])) / LN10);
+  const dataQuantity = Math.floor(log9(dataExtent[1] - dataExtent[0]) / LN10);
+  const sizeQuantity = Math.round(log9(Math.abs(pixelExtent[1] - pixelExtent[0])) / LN10);
   const precision = Math.min(Math.max(-dataQuantity + sizeQuantity, 0), 20);
   return !isFinite(precision) ? 20 : precision;
 }
@@ -12159,11 +12196,11 @@ function enableClassManagement(target, options) {
     return !!storage2[componentTypeInfo.main];
   };
   target.getAllClassMainTypes = function() {
-    const types297 = [];
+    const types298 = [];
     each(storage2, function(obj, type) {
-      types297.push(type);
+      types298.push(type);
     });
-    return types297;
+    return types298;
   };
   target.hasSubTypes = function(componentType) {
     const componentTypeInfo = parseClassType(componentType);
@@ -12304,7 +12341,7 @@ function makePath(pathData, opts, rect, layout33) {
   return path2;
 }
 function makeImage(imageUrl, rect, layout33) {
-  const path2 = new Image_default({
+  const zrImg = new Image_default({
     style: {
       image: imageUrl,
       x: rect.x,
@@ -12318,11 +12355,11 @@ function makeImage(imageUrl, rect, layout33) {
           width: img.width,
           height: img.height
         };
-        path2.setStyle(centerGraphic(rect, boundingRect));
+        zrImg.setStyle(centerGraphic(rect, boundingRect));
       }
     }
   });
-  return path2;
+  return zrImg;
 }
 function centerGraphic(rect, boundingRect) {
   const aspect = boundingRect.width / boundingRect.height;
@@ -12512,8 +12549,8 @@ function animateOrSetLabel(animationType, el, data, dataIndex, labelModel, serie
           }
         }
       }
-      const text9 = el.getTextContent();
-      if (text9) {
+      const text11 = el.getTextContent();
+      if (text11) {
         const labelText = getLabelText({
           labelDataIndex: dataIndex,
           labelFetcher: seriesModel,
@@ -12521,8 +12558,8 @@ function animateOrSetLabel(animationType, el, data, dataIndex, labelModel, serie
         }, {
           normal: labelModel
         }, interpolated);
-        text9.style.text = labelText.normal;
-        text9.dirty();
+        text11.style.text = labelText.normal;
+        text11.dirty();
       }
     };
     const props = {};
@@ -13103,6 +13140,25 @@ function savePathStates(el) {
   store.selectStroke = selectState.style && selectState.style.stroke || null;
 }
 
+// src/util/log.ts
+const storedLogs = {};
+function deprecateLog(str) {
+  if (__DEV__) {
+    if (storedLogs[str]) {
+      return;
+    }
+    if (typeof console !== "undefined" && console.warn) {
+      storedLogs[str] = true;
+      console.warn("[ECharts] DEPRECATED: " + str);
+    }
+  }
+}
+function deprecateReplaceLog(oldOpt, newOpt, scope) {
+  if (__DEV__) {
+    deprecateLog((scope ? `[${scope}]` : "") + `${oldOpt} is deprecated, use ${newOpt} instead.`);
+  }
+}
+
 // src/label/labelStyle.ts
 const EMPTY_OBJ = {};
 function getLabelText(opt, stateModels, overrideValue) {
@@ -13283,18 +13339,28 @@ function setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isN
   const inheritColor = opt && opt.inheritColor;
   let fillColor = textStyleModel.getShallow("color");
   let strokeColor = textStyleModel.getShallow("textBorderColor");
-  if (fillColor === "inherit") {
+  if (fillColor === "inherit" || fillColor === "auto") {
+    if (__DEV__) {
+      if (fillColor === "auto") {
+        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
+      }
+    }
     if (inheritColor) {
       fillColor = inheritColor;
     } else {
       fillColor = null;
     }
   }
-  if (strokeColor === "inherit" && inheritColor) {
+  if (strokeColor === "inherit" || strokeColor === "auto") {
+    if (__DEV__) {
+      if (strokeColor === "auto") {
+        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
+      }
+    }
     if (inheritColor) {
       strokeColor = inheritColor;
     } else {
-      strokeColor = inheritColor;
+      strokeColor = null;
     }
   }
   fillColor = fillColor || globalTextStyle.color;
@@ -13335,18 +13401,28 @@ function setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isN
     }
   }
   if (!isBlock || !opt.disableBox) {
-    if (textStyle2.backgroundColor === "auto" && inheritColor) {
-      textStyle2.backgroundColor = inheritColor;
-    }
-    if (textStyle2.borderColor === "auto" && inheritColor) {
-      textStyle2.borderColor = inheritColor;
-    }
     for (let i = 0; i < TEXT_PROPS_BOX.length; i++) {
       const key = TEXT_PROPS_BOX[i];
       const val = textStyleModel.getShallow(key);
       if (val != null) {
         textStyle2[key] = val;
       }
+    }
+    if ((textStyle2.backgroundColor === "auto" || textStyle2.backgroundColor === "inherit") && inheritColor) {
+      if (__DEV__) {
+        if (textStyle2.backgroundColor === "auto") {
+          deprecateReplaceLog("backgroundColor: 'auto'", "backgroundColor: 'inherit'");
+        }
+      }
+      textStyle2.backgroundColor = inheritColor;
+    }
+    if ((textStyle2.borderColor === "auto" || textStyle2.borderColor === "inherit") && inheritColor) {
+      if (__DEV__) {
+        if (textStyle2.borderColor === "auto") {
+          deprecateReplaceLog("borderColor: 'auto'", "borderColor: 'inherit'");
+        }
+      }
+      textStyle2.borderColor = inheritColor;
     }
   }
 }
@@ -13371,9 +13447,9 @@ class TextStyleMixin {
       fontFamily: this.getShallow("fontFamily")
     }, this.ecModel);
   }
-  getTextRect(text9) {
+  getTextRect(text11) {
     tmpRichText.useStyle({
-      text: text9,
+      text: text11,
       fontStyle: this.getShallow("fontStyle"),
       fontWeight: this.getShallow("fontWeight"),
       fontSize: this.getShallow("fontSize"),
@@ -13621,6 +13697,24 @@ function inheritDefaultOption(superOption, subOption) {
   return merge(merge({}, superOption, true), subOption, true);
 }
 
+// src/legacy/getTextRect.ts
+function getTextRect(text11, font, align, verticalAlign, padding, rich, truncate, lineHeight) {
+  deprecateLog("getTextRect is deprecated.");
+  const textEl = new Text_default({
+    style: {
+      text: text11,
+      font,
+      align,
+      verticalAlign,
+      padding,
+      rich,
+      overflow: truncate ? "truncate" : null,
+      lineHeight
+    }
+  });
+  return textEl.getBoundingRect();
+}
+
 // src/util/format.ts
 const format_exports = {};
 __export(format_exports, {
@@ -13630,6 +13724,7 @@ __export(format_exports, {
   formatTime: () => formatTime,
   formatTpl: () => formatTpl,
   formatTplSimple: () => formatTplSimple,
+  getTextRect: () => getTextRect,
   getTooltipMarker: () => getTooltipMarker,
   normalizeCssArray: () => normalizeCssArray2,
   toCamelCase: () => toCamelCase2,
@@ -15239,25 +15334,6 @@ function indicesEquals(indices1, indices2) {
   return indices1.join(",") === indices2.join(",");
 }
 const OptionManager_default = OptionManager4;
-
-// src/util/log.ts
-const storedLogs = {};
-function deprecateLog(str) {
-  if (__DEV__) {
-    if (storedLogs[str]) {
-      return;
-    }
-    if (typeof console !== "undefined" && console.warn) {
-      storedLogs[str] = true;
-      console.warn("[ECharts] DEPRECATED: " + str);
-    }
-  }
-}
-function deprecateReplaceLog(oldOpt, newOpt, scope) {
-  if (__DEV__) {
-    deprecateLog((scope ? `[${scope}]` : "") + `${oldOpt} is deprecated, use ${newOpt} instead.`);
-  }
-}
 
 // src/preprocessor/helper/compatStyle.ts
 const each17 = each;
@@ -16874,8 +16950,8 @@ const seriesStyleTask = {
     const data = seriesModel.getData();
     const stylePath = seriesModel.visualStyleAccessPath || "itemStyle";
     const styleModel = seriesModel.getModel(stylePath);
-    const getStyle = getStyleMapper(seriesModel, stylePath);
-    const globalStyle = getStyle(styleModel);
+    const getStyle2 = getStyleMapper(seriesModel, stylePath);
+    const globalStyle = getStyle2(styleModel);
     const colorKey = getDefaultColorKey(seriesModel, stylePath);
     const color8 = globalStyle[colorKey];
     const colorCallback = isFunction(color8) ? color8 : null;
@@ -16908,14 +16984,14 @@ const dataStyleTask = {
     }
     const data = seriesModel.getData();
     const stylePath = seriesModel.visualStyleAccessPath || "itemStyle";
-    const getStyle = getStyleMapper(seriesModel, stylePath);
+    const getStyle2 = getStyleMapper(seriesModel, stylePath);
     const colorKey = data.getVisual("drawType");
     return {
       dataEach: data.hasItemOption ? function(data2, idx) {
         const rawItem = data2.getRawDataItem(idx);
         if (rawItem && rawItem[stylePath]) {
           sharedModel.option = rawItem[stylePath];
-          const style2 = getStyle(sharedModel);
+          const style2 = getStyle2(sharedModel);
           const existsStyle = data2.ensureUniqueItemVisual(idx, "style");
           extend(existsStyle, style2);
           if (colorKey in style2) {
@@ -19113,8 +19189,15 @@ function getCanvasGradient(ctx, obj, rect) {
 
 // node_modules/zrender/src/canvas/graphic.ts
 const pathProxyForDraw = new PathProxy2(true);
-function doFillPath(ctx, el) {
-  const style2 = el.style;
+function styleHasStroke(style2) {
+  const stroke = style2.stroke;
+  return !(stroke == null || stroke === "none" || !(style2.lineWidth > 0));
+}
+function styleHasFill(style2) {
+  const fill = style2.fill;
+  return fill != null && fill !== "none";
+}
+function doFillPath(ctx, style2) {
   if (style2.fillOpacity != null && style2.fillOpacity !== 1) {
     const originalGlobalAlpha = ctx.globalAlpha;
     ctx.globalAlpha = style2.fillOpacity * style2.opacity;
@@ -19124,8 +19207,7 @@ function doFillPath(ctx, el) {
     ctx.fill();
   }
 }
-function doStrokePath(ctx, el) {
-  const style2 = el.style;
+function doStrokePath(ctx, style2) {
   if (style2.strokeOpacity != null && style2.strokeOpacity !== 1) {
     const originalGlobalAlpha = ctx.globalAlpha;
     ctx.globalAlpha = style2.strokeOpacity * style2.opacity;
@@ -19141,10 +19223,9 @@ function createCanvasPattern(ctx, pattern, el) {
     return ctx.createPattern(image2, pattern.repeat || "repeat");
   }
 }
-function brushPath(ctx, el, inBatch) {
-  let hasStroke = el.hasStroke();
-  let hasFill = el.hasFill();
-  const style2 = el.style;
+function brushPath(ctx, el, style2, inBatch) {
+  let hasStroke = styleHasStroke(style2);
+  let hasFill = styleHasFill(style2);
   const strokePercent = style2.strokePercent;
   const strokePart = strokePercent < 1;
   const firstDraw = !el.path;
@@ -19235,17 +19316,17 @@ function brushPath(ctx, el, inBatch) {
   if (!inBatch) {
     if (style2.strokeFirst) {
       if (hasStroke) {
-        doStrokePath(ctx, el);
+        doStrokePath(ctx, style2);
       }
       if (hasFill) {
-        doFillPath(ctx, el);
+        doFillPath(ctx, style2);
       }
     } else {
       if (hasFill) {
-        doFillPath(ctx, el);
+        doFillPath(ctx, style2);
       }
       if (hasStroke) {
-        doStrokePath(ctx, el);
+        doStrokePath(ctx, style2);
       }
     }
   }
@@ -19253,8 +19334,7 @@ function brushPath(ctx, el, inBatch) {
     ctx.setLineDash([]);
   }
 }
-function brushImage(ctx, el) {
-  const style2 = el.style;
+function brushImage(ctx, el, style2) {
   const image2 = el.__image = createOrUpdateImage(style2.image, el.__image, el, el.onload);
   if (!image2 || !isImageReady(image2)) {
     return;
@@ -19286,27 +19366,26 @@ function brushImage(ctx, el) {
     ctx.drawImage(image2, x, y, width, height);
   }
 }
-function brushText(ctx, el) {
-  const style2 = el.style;
-  let text9 = style2.text;
-  text9 != null && (text9 += "");
-  if (text9) {
+function brushText(ctx, el, style2) {
+  let text11 = style2.text;
+  text11 != null && (text11 += "");
+  if (text11) {
     ctx.font = style2.font || DEFAULT_FONT;
     ctx.textAlign = style2.textAlign;
     ctx.textBaseline = style2.textBaseline;
     if (style2.strokeFirst) {
-      if (el.hasStroke()) {
-        ctx.strokeText(text9, style2.x, style2.y);
+      if (styleHasStroke(style2)) {
+        ctx.strokeText(text11, style2.x, style2.y);
       }
-      if (el.hasFill()) {
-        ctx.fillText(text9, style2.x, style2.y);
+      if (styleHasFill(style2)) {
+        ctx.fillText(text11, style2.x, style2.y);
       }
     } else {
-      if (el.hasFill()) {
-        ctx.fillText(text9, style2.x, style2.y);
+      if (styleHasFill(style2)) {
+        ctx.fillText(text11, style2.x, style2.y);
       }
-      if (el.hasStroke()) {
-        ctx.strokeText(text9, style2.x, style2.y);
+      if (styleHasStroke(style2)) {
+        ctx.strokeText(text11, style2.x, style2.y);
       }
     }
   }
@@ -19355,8 +19434,8 @@ function bindCommonProps(ctx, style2, prevStyle, forceSetAll, scope) {
   return styleChanged;
 }
 function bindPathAndTextCommonStyle(ctx, el, prevEl, forceSetAll, scope) {
-  const style2 = el.style;
-  const prevStyle = forceSetAll ? null : prevEl && prevEl.style || {};
+  const style2 = getStyle(el, scope.inHover);
+  const prevStyle = forceSetAll ? null : prevEl && getStyle(prevEl, scope.inHover) || {};
   if (style2 === prevStyle) {
     return false;
   }
@@ -19407,7 +19486,7 @@ function bindPathAndTextCommonStyle(ctx, el, prevEl, forceSetAll, scope) {
   return styleChanged;
 }
 function bindImageStyle(ctx, el, prevEl, forceSetAll, scope) {
-  return bindCommonProps(ctx, el.style, prevEl && prevEl.style, forceSetAll, scope);
+  return bindCommonProps(ctx, getStyle(el, scope.inHover), prevEl && getStyle(prevEl, scope.inHover), forceSetAll, scope);
 }
 function setContextTransform(ctx, el) {
   const m2 = el.transform;
@@ -19467,10 +19546,9 @@ const DRAW_TYPE_PATH = 1;
 const DRAW_TYPE_IMAGE = 2;
 const DRAW_TYPE_TEXT = 3;
 const DRAW_TYPE_INCREMENTAL = 4;
-function canPathBatch(el) {
-  const style2 = el.style;
-  const hasFill = el.hasFill();
-  const hasStroke = el.hasStroke();
+function canPathBatch(style2) {
+  const hasFill = styleHasFill(style2);
+  const hasStroke = styleHasStroke(style2);
   return !(style2.lineDash || !(+hasFill ^ +hasStroke) || hasFill && typeof style2.fill !== "string" || hasStroke && typeof style2.stroke !== "string" || style2.strokePercent < 1 || style2.strokeOpacity < 1 || style2.fillOpacity < 1);
 }
 function flushPathDrawn(ctx, scope) {
@@ -19479,9 +19557,13 @@ function flushPathDrawn(ctx, scope) {
   scope.batchFill = "";
   scope.batchStroke = "";
 }
+function getStyle(el, inHover) {
+  return inHover ? el.__hoverStyle || el.style : el.style;
+}
 function brush2(ctx, el, scope, isLast) {
   const m2 = el.transform;
   if (el.invisible || el.style.opacity === 0 || el.culling && isDisplayableCulled(el, scope.viewWidth, scope.viewHeight) || m2 && !m2[0] && !m2[3]) {
+    el.__dirty = 0;
     return;
   }
   const clipPaths = el.__clipPaths;
@@ -19514,13 +19596,14 @@ function brush2(ctx, el, scope, isLast) {
   if (!prevEl) {
     forceSetStyle = forceSetTransform = true;
   }
-  let canBatchPath = el instanceof Path_default && el.autoBatch && canPathBatch(el);
+  let canBatchPath = el instanceof Path_default && el.autoBatch && canPathBatch(el.style);
   if (forceSetTransform || isTransformChanged(m2, prevEl.transform)) {
     flushPathDrawn(ctx, scope);
     setContextTransform(ctx, el);
   } else if (!canBatchPath) {
     flushPathDrawn(ctx, scope);
   }
+  const style2 = getStyle(el, scope.inHover);
   if (el instanceof Path_default) {
     if (scope.lastDrawType !== DRAW_TYPE_PATH) {
       forceSetStyle = true;
@@ -19530,10 +19613,10 @@ function brush2(ctx, el, scope, isLast) {
     if (!canBatchPath || !scope.batchFill && !scope.batchStroke) {
       ctx.beginPath();
     }
-    brushPath(ctx, el, canBatchPath);
+    brushPath(ctx, el, style2, canBatchPath);
     if (canBatchPath) {
-      scope.batchFill = el.style.fill || "";
-      scope.batchStroke = el.style.stroke || "";
+      scope.batchFill = style2.fill || "";
+      scope.batchStroke = style2.stroke || "";
     }
   } else {
     if (el instanceof TSpan_default) {
@@ -19542,14 +19625,14 @@ function brush2(ctx, el, scope, isLast) {
         scope.lastDrawType = DRAW_TYPE_TEXT;
       }
       bindPathAndTextCommonStyle(ctx, el, prevEl, forceSetStyle, scope);
-      brushText(ctx, el);
+      brushText(ctx, el, style2);
     } else if (el instanceof Image_default) {
       if (scope.lastDrawType !== DRAW_TYPE_IMAGE) {
         forceSetStyle = true;
         scope.lastDrawType = DRAW_TYPE_IMAGE;
       }
       bindImageStyle(ctx, el, prevEl, forceSetStyle, scope);
-      brushImage(ctx, el);
+      brushImage(ctx, el, style2);
     } else if (el instanceof IncrementalDisplayble) {
       if (scope.lastDrawType !== DRAW_TYPE_INCREMENTAL) {
         forceSetStyle = true;
@@ -19575,7 +19658,8 @@ function brushIncremental(ctx, el, scope) {
     prevEl: null,
     allClipped: false,
     viewWidth: scope.viewWidth,
-    viewHeight: scope.viewHeight
+    viewHeight: scope.viewHeight,
+    inHover: scope.inHover
   };
   let i;
   let len2;
@@ -19781,7 +19865,6 @@ class CanvasPainter3 {
     this._layers = {};
     this._layerConfig = {};
     this._needsManuallyCompositing = false;
-    this._hoverElements = [];
     this.type = "canvas";
     const singleCanvas = !root.nodeName || root.nodeName.toUpperCase() === "CANVAS";
     this._opts = opts = extend({}, opts || {});
@@ -19859,80 +19942,35 @@ class CanvasPainter3 {
         layer.refresh(clearColor);
       }
     }
-    this.refreshHover();
     return this;
   }
-  addHover(el, hoverStyle) {
-    if (el.__hoverMir) {
-      return;
-    }
-    const elMirror = new el.constructor({
-      style: el.style,
-      shape: el.shape,
-      z: el.z,
-      z2: el.z2,
-      silent: el.silent
-    });
-    elMirror.__from = el;
-    el.__hoverMir = elMirror;
-    hoverStyle && elMirror.setStyle(hoverStyle);
-    this._hoverElements.push(elMirror);
-    return elMirror;
-  }
-  removeHover(el) {
-    const elMirror = el.__hoverMir;
-    const hoverElements = this._hoverElements;
-    const idx = indexOf(hoverElements, elMirror);
-    if (idx >= 0) {
-      hoverElements.splice(idx, 1);
-    }
-    el.__hoverMir = null;
-  }
-  clearHover() {
-    const hoverElements = this._hoverElements;
-    for (let i = 0; i < hoverElements.length; i++) {
-      const from = hoverElements[i].__from;
-      if (from) {
-        from.__hoverMir = null;
-      }
-    }
-    hoverElements.length = 0;
-  }
   refreshHover() {
-    const hoverElements = this._hoverElements;
-    let len2 = hoverElements.length;
+    this._paintHoverList(this.storage.getDisplayList(false));
+  }
+  _paintHoverList(list) {
+    let len2 = list.length;
     let hoverLayer = this._hoverlayer;
     hoverLayer && hoverLayer.clear();
     if (!len2) {
       return;
     }
-    sort(hoverElements, this.storage.displayableSortFunc);
     if (!hoverLayer) {
       hoverLayer = this._hoverlayer = this.getLayer(HOVER_LAYER_ZLEVEL);
     }
     const scope = {
+      inHover: true,
       viewWidth: this._width,
       viewHeight: this._height
     };
-    hoverLayer.ctx.save();
-    for (let i = 0; i < len2; ) {
-      const el = hoverElements[i];
-      const originalEl = el.__from;
-      if (!(originalEl && originalEl.__zr)) {
-        hoverElements.splice(i, 1);
-        originalEl.__hoverMir = null;
-        len2--;
-        continue;
-      }
-      i++;
-      if (!originalEl.invisible) {
-        el.transform = originalEl.transform;
-        el.invTransform = originalEl.invTransform;
-        el.__clipPaths = originalEl.__clipPaths;
-        this._doPaintEl(el, hoverLayer, true, scope, i === len2 - 1);
+    const ctx = hoverLayer.ctx;
+    ctx.save();
+    for (let i = 0; i < len2; i++) {
+      const el = list[i];
+      if (el.__inHover) {
+        brush2(ctx, el, scope, i === len2 - 1);
       }
     }
-    hoverLayer.ctx.restore();
+    ctx.restore();
   }
   getHoverLayer() {
     return this.getLayer(HOVER_LAYER_ZLEVEL);
@@ -19943,9 +19981,12 @@ class CanvasPainter3 {
     }
     paintAll = paintAll || false;
     this._updateLayerStatus(list);
-    const finished = this._doPaintList(list, paintAll);
+    const {finished, needsRefreshHover} = this._doPaintList(list, paintAll);
     if (this._needsManuallyCompositing) {
       this._compositeManually();
+    }
+    if (needsRefreshHover) {
+      this._paintHoverList(list);
     }
     if (!finished) {
       const self2 = this;
@@ -19975,10 +20016,12 @@ class CanvasPainter3 {
       }
     }
     let finished = true;
+    let needsRefreshHover = false;
     for (let k = 0; k < layerList.length; k++) {
       const layer = layerList[k];
       const ctx = layer.ctx;
       const scope = {
+        inHover: false,
         allClipped: false,
         prevEl: null,
         viewWidth: this._width,
@@ -20004,7 +20047,10 @@ class CanvasPainter3 {
       let i;
       for (i = start2; i < layer.__endIndex; i++) {
         const el = list[i];
-        this._doPaintEl(el, layer, paintAll, scope, i === layer.__endIndex - 1);
+        if (el.__inHover) {
+          needsRefreshHover = true;
+        }
+        brush2(ctx, el, scope, i === layer.__endIndex - 1);
         if (useTimer) {
           const dTime = Date.now() - startTime;
           if (dTime > 15) {
@@ -20028,13 +20074,10 @@ class CanvasPainter3 {
         }
       });
     }
-    return finished;
-  }
-  _doPaintEl(el, currentLayer, forcePaint, scope, isLast) {
-    const ctx = currentLayer.ctx;
-    if (currentLayer.__dirty || forcePaint) {
-      brush2(ctx, el, scope, isLast);
-    }
+    return {
+      finished,
+      needsRefreshHover
+    };
   }
   getLayer(zlevel, virtual) {
     if (this._singleCanvas && !this._needsManuallyCompositing) {
@@ -20188,7 +20231,7 @@ class CanvasPainter3 {
         updatePrevLayer(i);
         prevLayer = layer;
       }
-      if (el.__dirty) {
+      if (el.__dirty & Element_default.REDARAW_BIT && !el.__inHover) {
         layer.__dirty = true;
         if (layer.incremental && layer.__drawIndex < 0) {
           layer.__drawIndex = i;
@@ -20216,13 +20259,13 @@ class CanvasPainter3 {
   setBackgroundColor(backgroundColor) {
     this._backgroundColor = backgroundColor;
   }
-  configLayer(zlevel, config56) {
-    if (config56) {
+  configLayer(zlevel, config58) {
+    if (config58) {
       const layerConfig = this._layerConfig;
       if (!layerConfig[zlevel]) {
-        layerConfig[zlevel] = config56;
+        layerConfig[zlevel] = config58;
       } else {
-        merge(layerConfig[zlevel], config56, true);
+        merge(layerConfig[zlevel], config58, true);
       }
       for (let i = 0; i < this._zlevelList.length; i++) {
         const _zlevel = this._zlevelList[i];
@@ -20292,16 +20335,17 @@ class CanvasPainter3 {
       return this._layers[CANVAS_ZLEVEL].dom;
     }
     const imageLayer = new Layer("image", this, opts.pixelRatio || this.dpr);
+    const ctx = imageLayer.ctx;
     imageLayer.initContext();
     imageLayer.clear(false, opts.backgroundColor || this._backgroundColor);
     if (opts.pixelRatio <= this.dpr) {
       this.refresh();
       const width = imageLayer.dom.width;
       const height = imageLayer.dom.height;
-      const ctx = imageLayer.ctx;
+      const ctx2 = imageLayer.ctx;
       this.eachLayer(function(layer) {
         if (layer.__builtin__) {
-          ctx.drawImage(layer.dom, 0, 0, width, height);
+          ctx2.drawImage(layer.dom, 0, 0, width, height);
         } else if (layer.renderToCanvas) {
           imageLayer.ctx.save();
           layer.renderToCanvas(imageLayer.ctx);
@@ -20310,13 +20354,14 @@ class CanvasPainter3 {
       });
     } else {
       const scope = {
+        inHover: false,
         viewWidth: this._width,
         viewHeight: this._height
       };
       const displayList = this.storage.getDisplayList(true);
       for (let i = 0, len2 = displayList.length; i < len2; i++) {
         const el = displayList[i];
-        this._doPaintEl(el, imageLayer, true, scope, i === len2 - 1);
+        brush2(ctx, el, scope, i === len2 - 1);
       }
     }
     return imageLayer.dom;
@@ -20378,6 +20423,7 @@ class CanvasPainter3 {
     path2.updateTransform();
     if (path2) {
       brush2(ctx, path2, {
+        inHover: false,
         viewWidth: this._width,
         viewHeight: this._height
       }, true);
@@ -21123,7 +21169,7 @@ ECharts.internalField = function() {
     }
     ecModel && ecModel.eachComponent(condition, function(model64) {
       if (!excludeSeriesIdMap || excludeSeriesIdMap.get(model64.id) == null) {
-        if (isHighDownPayload(payload)) {
+        if (isHighDownPayload(payload) && !payload.notBlur) {
           if (model64 instanceof Series_default) {
             toggleSeriesBlurStateFromPayload(model64, payload, ecIns);
           }
@@ -21487,6 +21533,7 @@ ECharts.internalField = function() {
       const chartView = ecIns._chartsMap[seriesModel.__viewId];
       updateStates(seriesModel, chartView);
     });
+    updateHoverLayerStatus(ecIns, ecModel);
     aria_default(ecIns._zr.dom, ecModel);
   };
   performPostUpdateFuncs = function(ecModel, api) {
@@ -21503,35 +21550,40 @@ ECharts.internalField = function() {
       return;
     }
     ecIns.getZr().storage.traverse(function(el) {
-      const newStates = [];
-      const oldStates = el.currentStates;
       if (isElementRemoved(el)) {
         return;
       }
-      for (let i = 0; i < oldStates.length; i++) {
-        const stateName = oldStates[i];
-        if (!(stateName === "emphasis" || stateName === "blur" || stateName === "select")) {
-          newStates.push(stateName);
-        }
-      }
-      if (el.selected && el.states.select) {
-        newStates.push("select");
-      }
-      if (el.hoverState === HOVER_STATE_EMPHASIS && el.states.emphasis) {
-        newStates.push("emphasis");
-      } else if (el.hoverState === HOVER_STATE_BLUR && el.states.blur) {
-        newStates.push("blur");
-      }
-      el.useStates(newStates);
+      applyElementStates(el);
     });
     ecIns[STATUS_NEEDS_UPDATE_KEY] = false;
   };
+  function applyElementStates(el) {
+    const newStates = [];
+    const oldStates = el.currentStates;
+    for (let i = 0; i < oldStates.length; i++) {
+      const stateName = oldStates[i];
+      if (!(stateName === "emphasis" || stateName === "blur" || stateName === "select")) {
+        newStates.push(stateName);
+      }
+    }
+    if (el.selected && el.states.select) {
+      newStates.push("select");
+    }
+    if (el.hoverState === HOVER_STATE_EMPHASIS && el.states.emphasis) {
+      newStates.push("emphasis");
+    } else if (el.hoverState === HOVER_STATE_BLUR && el.states.blur) {
+      newStates.push("blur");
+    }
+    el.useStates(newStates);
+  }
   function updateHoverLayerStatus(ecIns, ecModel) {
     const zr = ecIns._zr;
     const storage2 = zr.storage;
     let elCount = 0;
     storage2.traverse(function(el) {
-      elCount++;
+      if (!el.isGroup) {
+        elCount++;
+      }
     });
     if (elCount > ecModel.get("hoverLayerThreshold") && !env_default.node) {
       ecModel.eachSeries(function(seriesModel) {
@@ -21541,7 +21593,9 @@ ECharts.internalField = function() {
         const chartView = ecIns._chartsMap[seriesModel.__viewId];
         if (chartView.__alive) {
           chartView.group.traverse(function(el) {
-            el.useHoverLayer = true;
+            if (el.states.emphasis) {
+              el.states.emphasis.hoverLayer = true;
+            }
           });
         }
       });
@@ -21652,14 +21706,7 @@ ECharts.internalField = function() {
           }
         }
         if (el.__dirty) {
-          const states34 = [];
-          if (el.selected) {
-            states34.push("select");
-          }
-          if (el.hoverState) {
-            states34.push("emphasis");
-          }
-          el.useStates(states34);
+          applyElementStates(el);
         }
       }
     });
@@ -24176,8 +24223,8 @@ function doCalBarWidthAndOffset(seriesInfoList) {
       bandWidth,
       remainedWidth: bandWidth,
       autoWidthCount: 0,
-      categoryGap: "20%",
-      gap: "30%",
+      categoryGap: null,
+      gap: "20%",
       stacks: {}
     };
     const stacks = columnsOnAxis.stacks;
@@ -24210,7 +24257,12 @@ function doCalBarWidthAndOffset(seriesInfoList) {
     result[coordSysName] = {};
     const stacks = columnsOnAxis.stacks;
     const bandWidth = columnsOnAxis.bandWidth;
-    const categoryGap = parsePercent3(columnsOnAxis.categoryGap, bandWidth);
+    let categoryGapPercent = columnsOnAxis.categoryGap;
+    if (categoryGapPercent == null) {
+      const columnCount = keys(stacks).length;
+      categoryGapPercent = Math.max(35 - columnCount * 4, 15) + "%";
+    }
+    const categoryGap = parsePercent3(categoryGapPercent, bandWidth);
     const barGapPercent = parsePercent3(columnsOnAxis.gap, 1);
     let remainedWidth = columnsOnAxis.remainedWidth;
     let autoWidthCount = columnsOnAxis.autoWidthCount;
@@ -25133,10 +25185,10 @@ const SymbolClz = Path_default.extend({
     width: 0,
     height: 0
   },
-  calculateTextPosition(out2, config56, rect) {
-    const res = calculateTextPosition(out2, config56, rect);
+  calculateTextPosition(out2, config58, rect) {
+    const res = calculateTextPosition(out2, config58, rect);
     const shape = this.shape;
-    if (shape && shape.symbolType === "pin" && config56.position === "inside") {
+    if (shape && shape.symbolType === "pin" && config58.position === "inside") {
       res.y = rect.y + rect.height * 0.4;
     }
     return res;
@@ -26014,13 +26066,24 @@ class Symbol4 extends Group_default {
     cursorStyle && symbolPath.attr("cursor", cursorStyle);
     const symbolStyle = data.getItemVisual(idx, "style");
     const visualColor = symbolStyle.fill;
-    if (symbolPath.__isEmptyBrush) {
-      symbolPath.useStyle(extend({}, symbolStyle));
+    if (symbolPath instanceof Image_default) {
+      const pathStyle = symbolPath.style;
+      symbolPath.useStyle(extend({
+        image: pathStyle.image,
+        x: pathStyle.x,
+        y: pathStyle.y,
+        width: pathStyle.width,
+        height: pathStyle.height
+      }, symbolStyle));
     } else {
-      symbolPath.useStyle(symbolStyle);
+      if (symbolPath.__isEmptyBrush) {
+        symbolPath.useStyle(extend({}, symbolStyle));
+      } else {
+        symbolPath.useStyle(symbolStyle);
+      }
+      symbolPath.setColor(visualColor, opts && opts.symbolInnerColor);
+      symbolPath.style.strokeNoScale = true;
     }
-    symbolPath.setColor(visualColor, opts && opts.symbolInnerColor);
-    symbolPath.style.strokeNoScale = true;
     const liftZ = data.getItemVisual(idx, "liftZ");
     const z2Origin = this._z2;
     if (liftZ != null) {
@@ -26186,7 +26249,8 @@ class SymbolDraw5 {
     opt = normalizeUpdateOpt(opt);
     function updateIncrementalAndHover(el) {
       if (!el.isGroup) {
-        el.incremental = el.useHoverLayer = true;
+        el.incremental = true;
+        el.ensureState("emphasis").hoverLayer = true;
       }
     }
     for (let idx = taskParams.start; idx < taskParams.end; idx++) {
@@ -27025,8 +27089,8 @@ class LineView2 extends Chart_default {
     const dataIndex = queryDataIndex(data, payload);
     this._changePolyState("emphasis");
     if (!(dataIndex instanceof Array) && dataIndex != null && dataIndex >= 0) {
-      let symbol12 = data.getItemGraphicEl(dataIndex);
-      if (!symbol12) {
+      let symbol14 = data.getItemGraphicEl(dataIndex);
+      if (!symbol14) {
         const pt = data.getItemLayout(dataIndex);
         if (!pt) {
           return;
@@ -27034,16 +27098,16 @@ class LineView2 extends Chart_default {
         if (this._clipShapeForSymbol && !this._clipShapeForSymbol.contain(pt[0], pt[1])) {
           return;
         }
-        symbol12 = new Symbol_default(data, dataIndex);
-        symbol12.setPosition(pt);
-        symbol12.setZ(seriesModel.get("zlevel"), seriesModel.get("z"));
-        symbol12.ignore = isNaN(pt[0]) || isNaN(pt[1]);
-        symbol12.__temp = true;
-        data.setItemGraphicEl(dataIndex, symbol12);
-        symbol12.stopSymbolAnimation(true);
-        this.group.add(symbol12);
+        symbol14 = new Symbol_default(data, dataIndex);
+        symbol14.setPosition(pt);
+        symbol14.setZ(seriesModel.get("zlevel"), seriesModel.get("z"));
+        symbol14.ignore = isNaN(pt[0]) || isNaN(pt[1]);
+        symbol14.__temp = true;
+        data.setItemGraphicEl(dataIndex, symbol14);
+        symbol14.stopSymbolAnimation(true);
+        this.group.add(symbol14);
       }
-      symbol12.highlight();
+      symbol14.highlight();
     } else {
       Chart_default.prototype.highlight.call(this, seriesModel, ecModel, api, payload);
     }
@@ -27053,13 +27117,13 @@ class LineView2 extends Chart_default {
     const dataIndex = queryDataIndex(data, payload);
     this._changePolyState("normal");
     if (dataIndex != null && dataIndex >= 0) {
-      const symbol12 = data.getItemGraphicEl(dataIndex);
-      if (symbol12) {
-        if (symbol12.__temp) {
+      const symbol14 = data.getItemGraphicEl(dataIndex);
+      if (symbol14) {
+        if (symbol14.__temp) {
           data.setItemGraphicEl(dataIndex, null);
-          this.group.remove(symbol12);
+          this.group.remove(symbol14);
         } else {
-          symbol12.downplay();
+          symbol14.downplay();
         }
       }
     } else {
@@ -27631,16 +27695,16 @@ const builders = {
         r: Math.sqrt((pt12[0] - pt22[0]) * (pt12[0] - pt22[0]) + (pt12[1] - pt22[1]) * (pt12[1] - pt22[1]))
       }], function(point, index) {
         if (arrows[index] !== "none" && arrows[index] != null) {
-          const symbol12 = createSymbol(arrows[index], -symbolWidth / 2, -symbolHeight / 2, symbolWidth, symbolHeight, lineStyle3.stroke, true);
+          const symbol14 = createSymbol(arrows[index], -symbolWidth / 2, -symbolHeight / 2, symbolWidth, symbolHeight, lineStyle3.stroke, true);
           const r = point.r + point.offset;
-          symbol12.attr({
+          symbol14.attr({
             rotation: point.rotate,
             x: pt12[0] + r * Math.cos(opt.rotation),
             y: pt12[1] - r * Math.sin(opt.rotation),
             silent: true,
             z2: 11
           });
-          group.add(symbol12);
+          group.add(symbol14);
         }
       });
     }
@@ -30305,6 +30369,11 @@ function labelLayout_default(seriesModel) {
       label.setStyle({
         align: textAlign
       });
+      const selectState = label.states.select;
+      if (selectState) {
+        selectState.x += label.x;
+        selectState.y += label.y;
+      }
     }
     sector.setTextConfig({
       inside: isLabelInside
@@ -30357,9 +30426,9 @@ class PiePiece extends Sector_default {
     super();
     this.z2 = 2;
     const polyline = new Polyline_default();
-    const text9 = new Text_default();
+    const text11 = new Text_default();
     this.setTextGuideLine(polyline);
-    this.setTextContent(text9);
+    this.setTextContent(text11);
     this.updateData(data, idx, startAngle, true);
   }
   updateData(data, idx, startAngle, firstCreate) {
@@ -31608,8 +31677,19 @@ class RadarView2 extends Chart_default {
       const emphasisModel = itemModel.getModel("emphasis");
       const itemHoverStyle = emphasisModel.getModel("itemStyle").getItemStyle();
       symbolGroup.eachChild(function(symbolPath) {
-        symbolPath.useStyle(itemStyle5);
-        symbolPath.setColor(color8);
+        if (symbolPath instanceof Image_default) {
+          const pathStyle = symbolPath.style;
+          symbolPath.useStyle(extend({
+            image: pathStyle.image,
+            x: pathStyle.x,
+            y: pathStyle.y,
+            width: pathStyle.width,
+            height: pathStyle.height
+          }, itemStyle5));
+        } else {
+          symbolPath.useStyle(itemStyle5);
+          symbolPath.setColor(color8);
+        }
         const pathEmphasisState = symbolPath.ensureState("emphasis");
         pathEmphasisState.style = clone2(itemHoverStyle);
         let defaultText = data.get(data.dimensions[symbolPath.__dimIdx], idx);
@@ -31826,10 +31906,10 @@ const geoSVGLoader_default = {
         boundingRect: inner16(mapRecord).boundingRect
       };
     }
-    const graphic82 = buildGraphic(mapRecord);
-    inner16(mapRecord).originRoot = graphic82.root;
-    inner16(mapRecord).boundingRect = graphic82.boundingRect;
-    return graphic82;
+    const graphic83 = buildGraphic(mapRecord);
+    inner16(mapRecord).originRoot = graphic83.root;
+    inner16(mapRecord).boundingRect = graphic83.boundingRect;
+    return graphic83;
   },
   makeGraphic(mapName, mapRecord, hostKey) {
     const field = inner16(mapRecord);
@@ -34736,13 +34816,13 @@ class Breadcrumb {
   }
   _prepare(targetNode, layoutParam, textStyleModel) {
     for (let node = targetNode; node; node = node.parentNode) {
-      const text9 = node.getModel().get("name");
-      const textRect = textStyleModel.getTextRect(text9);
+      const text11 = node.getModel().get("name");
+      const textRect = textStyleModel.getTextRect(text11);
       const itemWidth = Math.max(textRect.width + TEXT_PADDING * 2, layoutParam.emptyItemWidth);
       layoutParam.totalWidth += itemWidth + ITEM_GAP;
       layoutParam.renderList.push({
         node,
-        text: text9,
+        text: text11,
         width: itemWidth
       });
     }
@@ -34758,11 +34838,11 @@ class Breadcrumb {
       const item = renderList[i];
       const itemNode = item.node;
       let itemWidth = item.width;
-      let text9 = item.text;
+      let text11 = item.text;
       if (totalWidth > availableSize.width) {
         totalWidth -= itemWidth - emptyItemWidth;
         itemWidth = emptyItemWidth;
-        text9 = null;
+        text11 = null;
       }
       const el = new Polygon_default({
         shape: {
@@ -34773,7 +34853,7 @@ class Breadcrumb {
         }),
         textContent: new Text_default({
           style: {
-            text: text9,
+            text: text11,
             fill: textStyleModel.getTextColor(),
             font: textStyleModel.getFont()
           }
@@ -34904,8 +34984,8 @@ class TreemapView2 extends Chart_default {
     this.seriesModel = seriesModel;
     this.api = api;
     this.ecModel = ecModel;
-    const types297 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types297, seriesModel);
+    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types298, seriesModel);
     const payloadType = payload && payload.type;
     const layoutInfo = seriesModel.layoutInfo;
     const isInit = !this._oldTree;
@@ -35418,14 +35498,14 @@ function renderNode(seriesModel, thisStorage, oldStorage, reRoot, lastsForAnimat
   }
   function prepareText(rectEl, visualColor, width, height, upperLabelRect) {
     const normalLabelModel = nodeModel.getModel(upperLabelRect ? PATH_UPPERLABEL_NORMAL : PATH_LABEL_NOAMAL);
-    let text9 = retrieve(seriesModel.getFormattedLabel(thisNode.dataIndex, "normal", null, null, normalLabelModel.get("formatter")), nodeModel.get("name"));
+    let text11 = retrieve(seriesModel.getFormattedLabel(thisNode.dataIndex, "normal", null, null, normalLabelModel.get("formatter")), nodeModel.get("name"));
     if (!upperLabelRect && thisLayout.isLeafRoot) {
       const iconChar = seriesModel.get("drillDownIcon", true);
-      text9 = iconChar ? iconChar + " " + text9 : text9;
+      text11 = iconChar ? iconChar + " " + text11 : text11;
     }
     const isShow = normalLabelModel.getShallow("show");
     setLabelStyle(rectEl, getLabelStatesModels(nodeModel, upperLabelRect ? PATH_UPPERLABEL_NORMAL : PATH_LABEL_NOAMAL), {
-      defaultText: isShow ? text9 : null,
+      defaultText: isShow ? text11 : null,
       inheritColor: visualColor,
       labelFetcher: seriesModel,
       labelDataIndex: thisNode.dataIndex
@@ -35441,15 +35521,17 @@ function renderNode(seriesModel, thisStorage, oldStorage, reRoot, lastsForAnimat
     const textStyle2 = textEl.style;
     textStyle2.truncateMinChar = 2;
     textStyle2.width = width;
+    textStyle2.height = height;
+    textStyle2.lineOverflow = "truncate";
     addDrillDownIcon(textStyle2, upperLabelRect, thisLayout);
     const textEmphasisState = textEl.getState("emphasis");
     addDrillDownIcon(textEmphasisState ? textEmphasisState.style : null, upperLabelRect, thisLayout);
   }
   function addDrillDownIcon(style2, upperLabelRect, thisLayout2) {
-    const text9 = style2 ? style2.text : null;
-    if (!upperLabelRect && thisLayout2.isLeafRoot && text9 != null) {
+    const text11 = style2 ? style2.text : null;
+    if (!upperLabelRect && thisLayout2.isLeafRoot && text11 != null) {
       const iconChar = seriesModel.get("drillDownIcon", true);
-      style2.text = iconChar ? iconChar + " " + text9 : text9;
+      style2.text = iconChar ? iconChar + " " + text11 : text11;
     }
   }
   function giveGraphic(storageName, Ctor, depth2, z) {
@@ -35529,8 +35611,8 @@ registerAction({
     query: payload
   }, handleRootToNode);
   function handleRootToNode(model64, index) {
-    const types297 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types297, model64);
+    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types298, model64);
     if (targetInfo) {
       const originViewRoot = model64.getViewRoot();
       if (originViewRoot) {
@@ -35611,11 +35693,11 @@ class VisualMapping9 {
     if (isArray(visualTypes)) {
       visualTypes = visualTypes.slice();
     } else if (isObject5(visualTypes)) {
-      const types297 = [];
+      const types298 = [];
       each19(visualTypes, function(item, type) {
-        types297.push(type);
+        types298.push(type);
       });
-      visualTypes = types297;
+      visualTypes = types298;
     } else {
       return [];
     }
@@ -36042,8 +36124,8 @@ const treemapLayout_default = {
     const containerWidth = parsePercent3(retrieveValue(layoutInfo.width, size[0]), ecWidth);
     const containerHeight = parsePercent3(retrieveValue(layoutInfo.height, size[1]), ecHeight);
     const payloadType = payload && payload.type;
-    const types297 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types297, seriesModel);
+    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types298, seriesModel);
     const rootRect = payloadType === "treemapRender" || payloadType === "treemapMove" ? payload.rootRect : null;
     const viewRoot = seriesModel.getViewRoot();
     const viewAbovePath = getPathToRoot(viewRoot);
@@ -36980,8 +37062,8 @@ class Line7 extends Group_default {
     }, seriesModel, idx);
     this.add(line3);
     each(SYMBOL_CATEGORIES, function(symbolCategory) {
-      const symbol12 = createSymbol2(symbolCategory, lineData, idx);
-      this.add(symbol12);
+      const symbol14 = createSymbol2(symbolCategory, lineData, idx);
+      this.add(symbol14);
       this[makeSymbolTypeKey(symbolCategory)] = lineData.getItemVisual(idx, symbolCategory);
     }, this);
     this._updateCommonStl(lineData, idx, seriesScope);
@@ -37000,8 +37082,8 @@ class Line7 extends Group_default {
       const key = makeSymbolTypeKey(symbolCategory);
       if (this[key] !== symbolType) {
         this.remove(this.childOfName(symbolCategory));
-        const symbol12 = createSymbol2(symbolCategory, lineData, idx);
-        this.add(symbol12);
+        const symbol14 = createSymbol2(symbolCategory, lineData, idx);
+        this.add(symbol14);
       }
       this[key] = symbolType;
     }, this);
@@ -37033,26 +37115,26 @@ class Line7 extends Group_default {
     line3.ensureState("blur").style = blurLineStyle;
     line3.ensureState("select").style = selectLineStyle;
     each(SYMBOL_CATEGORIES, function(symbolCategory) {
-      const symbol12 = this.childOfName(symbolCategory);
-      if (symbol12) {
-        symbol12.setColor(visualColor);
-        symbol12.style.opacity = lineStyle3.opacity;
+      const symbol14 = this.childOfName(symbolCategory);
+      if (symbol14) {
+        symbol14.setColor(visualColor);
+        symbol14.style.opacity = lineStyle3.opacity;
         for (let i = 0; i < SPECIAL_STATES.length; i++) {
           const stateName = SPECIAL_STATES[i];
           const lineState = line3.getState(stateName);
           if (lineState) {
             const lineStateStyle = lineState.style || {};
-            const state = symbol12.ensureState(stateName);
+            const state = symbol14.ensureState(stateName);
             const stateStyle = state.style || (state.style = {});
             if (lineStateStyle.stroke != null) {
-              stateStyle[symbol12.__isEmptyBrush ? "stroke" : "fill"] = lineStateStyle.stroke;
+              stateStyle[symbol14.__isEmptyBrush ? "stroke" : "fill"] = lineStateStyle.stroke;
             }
             if (lineStateStyle.opacity != null) {
               stateStyle.opacity = lineStateStyle.opacity;
             }
           }
         }
-        symbol12.markRedraw();
+        symbol14.markRedraw();
       }
     }, this);
     const rawVal = seriesModel.getRawValue(idx);
@@ -37275,7 +37357,8 @@ class LineDraw4 {
   incrementalUpdate(taskParams, lineData) {
     function updateIncrementalAndHover(el) {
       if (!el.isGroup && !isEffectObject(el)) {
-        el.incremental = el.useHoverLayer = true;
+        el.incremental = true;
+        el.ensureState("emphasis").hoverLayer = true;
       }
     }
     for (let idx = taskParams.start; idx < taskParams.end; idx++) {
@@ -38740,8 +38823,8 @@ class FunnelPiece extends Polygon_default {
     super();
     const polygon = this;
     const labelLine = new Polyline_default();
-    const text9 = new Text_default();
-    polygon.setTextContent(text9);
+    const text11 = new Text_default();
+    polygon.setTextContent(text11);
     this.setTextGuideLine(labelLine);
     this.updateData(data, idx, true);
   }
@@ -42422,9 +42505,9 @@ function updateRipplePath(rippleGroup, effectCfg) {
 class EffectSymbol2 extends Group_default {
   constructor(data, idx) {
     super();
-    const symbol12 = new Symbol_default(data, idx);
+    const symbol14 = new Symbol_default(data, idx);
     const rippleGroup = new Group_default();
-    this.add(symbol12);
+    this.add(symbol14);
     this.add(rippleGroup);
     this.updateData(data, idx);
   }
@@ -42839,29 +42922,29 @@ class EffectLine extends Group_default {
     }
     const lineStyle3 = lineData.getItemVisual(idx, "style");
     const color8 = effectModel.get("color") || lineStyle3 && lineStyle3.stroke;
-    let symbol12 = this.childAt(1);
+    let symbol14 = this.childAt(1);
     if (this._symbolType !== symbolType) {
-      this.remove(symbol12);
-      symbol12 = createSymbol(symbolType, -0.5, -0.5, 1, 1, color8);
-      symbol12.z2 = 100;
-      symbol12.culling = true;
-      this.add(symbol12);
+      this.remove(symbol14);
+      symbol14 = createSymbol(symbolType, -0.5, -0.5, 1, 1, color8);
+      symbol14.z2 = 100;
+      symbol14.culling = true;
+      this.add(symbol14);
     }
-    if (!symbol12) {
+    if (!symbol14) {
       return;
     }
-    symbol12.setStyle("shadowColor", color8);
-    symbol12.setStyle(effectModel.getItemStyle(["color"]));
-    symbol12.scaleX = size[0];
-    symbol12.scaleY = size[1];
-    symbol12.setColor(color8);
+    symbol14.setStyle("shadowColor", color8);
+    symbol14.setStyle(effectModel.getItemStyle(["color"]));
+    symbol14.scaleX = size[0];
+    symbol14.scaleY = size[1];
+    symbol14.setColor(color8);
     this._symbolType = symbolType;
     this._symbolScale = size;
     this._updateEffectAnimation(lineData, effectModel, idx);
   }
   _updateEffectAnimation(lineData, effectModel, idx) {
-    const symbol12 = this.childAt(1);
-    if (!symbol12) {
+    const symbol14 = this.childAt(1);
+    if (!symbol14) {
       return;
     }
     const self2 = this;
@@ -42872,13 +42955,13 @@ class EffectLine extends Group_default {
     const delayExpr = retrieve(effectModel.get("delay"), function(idx2) {
       return idx2 / lineData.count() * period / 3;
     });
-    symbol12.ignore = true;
-    this._updateAnimationPoints(symbol12, points9);
+    symbol14.ignore = true;
+    this._updateAnimationPoints(symbol14, points9);
     if (constantSpeed > 0) {
-      period = this._getLineLength(symbol12) / constantSpeed * 1000;
+      period = this._getLineLength(symbol14) / constantSpeed * 1000;
     }
     if (period !== this._period || loop !== this._loop) {
-      symbol12.stopAnimation();
+      symbol14.stopAnimation();
       if (period > 0) {
         let delayNum;
         if (typeof delayExpr === "function") {
@@ -42886,18 +42969,18 @@ class EffectLine extends Group_default {
         } else {
           delayNum = delayExpr;
         }
-        if (symbol12.__t > 0) {
-          delayNum = -period * symbol12.__t;
+        if (symbol14.__t > 0) {
+          delayNum = -period * symbol14.__t;
         }
-        symbol12.__t = 0;
-        const animator = symbol12.animate("", loop).when(period, {
+        symbol14.__t = 0;
+        const animator = symbol14.animate("", loop).when(period, {
           __t: 1
         }).delay(delayNum).during(function() {
-          self2._updateSymbolPosition(symbol12);
+          self2._updateSymbolPosition(symbol14);
         });
         if (!loop) {
           animator.done(function() {
-            self2.remove(symbol12);
+            self2.remove(symbol14);
           });
         }
         animator.start();
@@ -42906,24 +42989,24 @@ class EffectLine extends Group_default {
     this._period = period;
     this._loop = loop;
   }
-  _getLineLength(symbol12) {
-    return dist(symbol12.__p1, symbol12.__cp1) + dist(symbol12.__cp1, symbol12.__p2);
+  _getLineLength(symbol14) {
+    return dist(symbol14.__p1, symbol14.__cp1) + dist(symbol14.__cp1, symbol14.__p2);
   }
-  _updateAnimationPoints(symbol12, points9) {
-    symbol12.__p1 = points9[0];
-    symbol12.__p2 = points9[1];
-    symbol12.__cp1 = points9[2] || [(points9[0][0] + points9[1][0]) / 2, (points9[0][1] + points9[1][1]) / 2];
+  _updateAnimationPoints(symbol14, points9) {
+    symbol14.__p1 = points9[0];
+    symbol14.__p2 = points9[1];
+    symbol14.__cp1 = points9[2] || [(points9[0][0] + points9[1][0]) / 2, (points9[0][1] + points9[1][1]) / 2];
   }
   updateData(lineData, idx, seriesScope) {
     this.childAt(0).updateData(lineData, idx, seriesScope);
     this._updateEffectSymbol(lineData, idx);
   }
-  _updateSymbolPosition(symbol12) {
-    const p1 = symbol12.__p1;
-    const p2 = symbol12.__p2;
-    const cp12 = symbol12.__cp1;
-    const t = symbol12.__t;
-    const pos = [symbol12.x, symbol12.y];
+  _updateSymbolPosition(symbol14) {
+    const p1 = symbol14.__p1;
+    const p2 = symbol14.__p2;
+    const cp12 = symbol14.__cp1;
+    const t = symbol14.__t;
+    const pos = [symbol14.x, symbol14.y];
     const lastPos = pos.slice();
     const quadraticAt3 = quadraticAt;
     const quadraticDerivativeAt2 = quadraticDerivativeAt;
@@ -42931,24 +43014,24 @@ class EffectLine extends Group_default {
     pos[1] = quadraticAt3(p1[1], cp12[1], p2[1], t);
     const tx = quadraticDerivativeAt2(p1[0], cp12[0], p2[0], t);
     const ty = quadraticDerivativeAt2(p1[1], cp12[1], p2[1], t);
-    symbol12.rotation = -Math.atan2(ty, tx) - Math.PI / 2;
+    symbol14.rotation = -Math.atan2(ty, tx) - Math.PI / 2;
     if (this._symbolType === "line" || this._symbolType === "rect" || this._symbolType === "roundRect") {
-      if (symbol12.__lastT !== void 0 && symbol12.__lastT < symbol12.__t) {
-        symbol12.scaleY = dist(lastPos, pos) * 1.05;
+      if (symbol14.__lastT !== void 0 && symbol14.__lastT < symbol14.__t) {
+        symbol14.scaleY = dist(lastPos, pos) * 1.05;
         if (t === 1) {
           pos[0] = lastPos[0] + (pos[0] - lastPos[0]) / 2;
           pos[1] = lastPos[1] + (pos[1] - lastPos[1]) / 2;
         }
-      } else if (symbol12.__lastT === 1) {
-        symbol12.scaleY = 2 * dist(p1, pos);
+      } else if (symbol14.__lastT === 1) {
+        symbol14.scaleY = 2 * dist(p1, pos);
       } else {
-        symbol12.scaleY = this._symbolScale[1];
+        symbol14.scaleY = this._symbolScale[1];
       }
     }
-    symbol12.__lastT = symbol12.__t;
-    symbol12.ignore = false;
-    symbol12.x = pos[0];
-    symbol12.y = pos[1];
+    symbol14.__lastT = symbol14.__t;
+    symbol14.ignore = false;
+    symbol14.x = pos[0];
+    symbol14.y = pos[1];
   }
   updateLayout(lineData, idx) {
     this.childAt(0).updateLayout(lineData, idx);
@@ -42993,6 +43076,7 @@ class Polyline7 extends Group_default {
       hoverLineStyle = itemModel.getModel(["emphasis", "lineStyle"]).getLineStyle();
     }
     line3.useStyle(lineData.getItemVisual(idx, "style"));
+    line3.style.fill = null;
     line3.style.strokeNoScale = true;
     const lineEmphasisState = line3.ensureState("emphasis");
     lineEmphasisState.style = hoverLineStyle;
@@ -43015,7 +43099,7 @@ class EffectPolyline extends EffectLine_default {
   createLine(lineData, idx, seriesScope) {
     return new Polyline_default2(lineData, idx, seriesScope);
   }
-  _updateAnimationPoints(symbol12, points9) {
+  _updateAnimationPoints(symbol14, points9) {
     this._points = points9;
     const accLenArr = [0];
     let len2 = 0;
@@ -43038,8 +43122,8 @@ class EffectPolyline extends EffectLine_default {
   _getLineLength() {
     return this._length;
   }
-  _updateSymbolPosition(symbol12) {
-    const t = symbol12.__t;
+  _updateSymbolPosition(symbol14) {
+    const t = symbol14.__t;
     const points9 = this._points;
     const offsets = this._offsets;
     const len2 = points9.length;
@@ -43067,14 +43151,14 @@ class EffectPolyline extends EffectLine_default {
     const p = (t - offsets[frame]) / (offsets[frame + 1] - offsets[frame]);
     const p0 = points9[frame];
     const p1 = points9[frame + 1];
-    symbol12.x = p0[0] * (1 - p) + p * p1[0];
-    symbol12.y = p0[1] * (1 - p) + p * p1[1];
+    symbol14.x = p0[0] * (1 - p) + p * p1[0];
+    symbol14.y = p0[1] * (1 - p) + p * p1[1];
     const tx = p1[0] - p0[0];
     const ty = p1[1] - p0[1];
-    symbol12.rotation = -Math.atan2(ty, tx) - Math.PI / 2;
+    symbol14.rotation = -Math.atan2(ty, tx) - Math.PI / 2;
     this._lastFrame = frame;
     this._lastFramePercent = t;
-    symbol12.ignore = false;
+    symbol14.ignore = false;
   }
 }
 const EffectPolyline_default = EffectPolyline;
@@ -43775,7 +43859,7 @@ class HeatmapView2 extends Chart_default {
       enableHoverEmphasis(rect, focus, blurScope);
       rect.incremental = incremental;
       if (incremental) {
-        rect.useHoverLayer = true;
+        rect.states.emphasis.hoverLayer = true;
       }
       group.add(rect);
       data.setItemGraphicEl(idx, rect);
@@ -44349,7 +44433,18 @@ function updateCommon(bar2, opt, symbolMeta) {
   const focus = emphasisModel.get("focus");
   const blurScope = emphasisModel.get("blurScope");
   eachPath(bar2, function(path2) {
-    path2.useStyle(symbolMeta.style);
+    if (path2 instanceof Image_default) {
+      const pathStyle = path2.style;
+      path2.useStyle(extend({
+        image: pathStyle.image,
+        x: pathStyle.x,
+        y: pathStyle.y,
+        width: pathStyle.width,
+        height: pathStyle.height
+      }, symbolMeta.style));
+    } else {
+      path2.useStyle(symbolMeta.style);
+    }
     const emphasisState = path2.ensureState("emphasis");
     emphasisState.style = emphasisStyle;
     emphasisState.scaleX = path2.scaleX * 1.1;
@@ -45024,11 +45119,13 @@ function dispatchHighDownActually(axesInfo, dispatchAction3, api) {
   toDownplay.length && api.dispatchAction({
     type: "downplay",
     escapeConnect: true,
+    notBlur: true,
     batch: toDownplay
   });
   toHighlight.length && api.dispatchAction({
     type: "highlight",
     escapeConnect: true,
+    notBlur: true,
     batch: toHighlight
   });
 }
@@ -45447,14 +45544,14 @@ function buildElStyle(axisPointerModel) {
 }
 function buildLabelElOption(elOption, axisModel, axisPointerModel, api, labelPos) {
   const value = axisPointerModel.get("value");
-  const text9 = getValueLabel(value, axisModel.axis, axisModel.ecModel, axisPointerModel.get("seriesDataIndices"), {
+  const text11 = getValueLabel(value, axisModel.axis, axisModel.ecModel, axisPointerModel.get("seriesDataIndices"), {
     precision: axisPointerModel.get(["label", "precision"]),
     formatter: axisPointerModel.get(["label", "formatter"])
   });
   const labelModel = axisPointerModel.getModel("label");
   const paddings = normalizeCssArray2(labelModel.get("padding") || 0);
   const font = labelModel.getFont();
-  const textRect = getBoundingRect(text9, font);
+  const textRect = getBoundingRect(text11, font);
   const position2 = labelPos.position;
   const width = textRect.width + paddings[1] + paddings[3];
   const height = textRect.height + paddings[0] + paddings[2];
@@ -45473,10 +45570,9 @@ function buildLabelElOption(elOption, axisModel, axisPointerModel, api, labelPos
     x: position2[0],
     y: position2[1],
     style: {
-      text: text9,
+      text: text11,
       textFont: font,
       fill: labelModel.getTextColor(),
-      align: "center",
       padding: paddings,
       backgroundColor: bgColor,
       borderColor: labelModel.get("borderColor") || "transparent",
@@ -45500,7 +45596,7 @@ function confineInContainer(position2, width, height, api) {
 }
 function getValueLabel(value, axis2, ecModel, seriesDataIndices, opt) {
   value = axis2.scale.parse(value);
-  let text9 = axis2.scale.getLabel(value, {
+  let text11 = axis2.scale.getLabel(value, {
     precision: opt.precision
   });
   const formatter = opt.formatter;
@@ -45518,12 +45614,12 @@ function getValueLabel(value, axis2, ecModel, seriesDataIndices, opt) {
       dataParams && params.seriesData.push(dataParams);
     });
     if (isString(formatter)) {
-      text9 = formatter.replace("{value}", text9);
+      text11 = formatter.replace("{value}", text11);
     } else if (isFunction(formatter)) {
-      text9 = formatter(params);
+      text11 = formatter(params);
     }
   }
-  return text9;
+  return text11;
 }
 function getTransformedPosition(axis2, value, layoutInfo) {
   const transform = create();
@@ -46350,11 +46446,11 @@ class SunburstPiece extends Sector_default {
       inside: true
     };
     getECData(this).seriesIndex = seriesModel.seriesIndex;
-    const text9 = new Text_default({
+    const text11 = new Text_default({
       z2: DEFAULT_TEXT_Z,
       silent: node.getModel().get(["label", "silent"])
     });
-    this.setTextContent(text9);
+    this.setTextContent(text11);
     this.updateData(true, node, seriesModel, ecModel);
   }
   updateData(firstCreate, node, seriesModel, ecModel) {
@@ -46414,13 +46510,13 @@ class SunburstPiece extends Sector_default {
       const labelMinAngle = labelStateModel.get("minAngle") / 180 * Math.PI;
       const isNormal = stateName === "normal";
       const state = isNormal ? label : label.ensureState(stateName);
-      let text9 = seriesModel.getFormattedLabel(dataIndex, stateName);
+      let text11 = seriesModel.getFormattedLabel(dataIndex, stateName);
       if (isNormal) {
-        text9 = text9 || this.node.name;
+        text11 = text11 || this.node.name;
       }
       state.style = createTextStyle(labelStateModel, {}, null, stateName !== "normal", true);
-      if (text9) {
-        state.style.text = text9;
+      if (text11) {
+        state.style.text = text11;
       }
       state.ignore = labelMinAngle != null && Math.abs(angle) < labelMinAngle;
       const labelPosition = getLabelAttr(labelStateModel, "position");
@@ -47250,7 +47346,7 @@ class CustomSeriesView extends Chart_default {
     function setIncrementalAndHoverLayer(el) {
       if (!el.isGroup) {
         el.incremental = true;
-        el.useHoverLayer = true;
+        el.ensureState("emphasis").hoverLayer = true;
       }
     }
     for (let idx = params.start; idx < params.end; idx++) {
@@ -52489,13 +52585,13 @@ class TooltipRichContent {
       this._zr.remove(this.el);
     }
     const markers = {};
-    let text9 = content;
+    let text11 = content;
     const prefix = "{marker";
     const suffix = "|}";
-    let startId = text9.indexOf(prefix);
+    let startId = text11.indexOf(prefix);
     while (startId >= 0) {
-      const endId = text9.indexOf(suffix);
-      const name = text9.substr(startId + prefix.length, endId - startId - prefix.length);
+      const endId = text11.indexOf(suffix);
+      const name = text11.substr(startId + prefix.length, endId - startId - prefix.length);
       if (name.indexOf("sub") > -1) {
         markers["marker" + name] = {
           width: 4,
@@ -52511,8 +52607,8 @@ class TooltipRichContent {
           backgroundColor: markerRich[name]
         };
       }
-      text9 = text9.substr(endId + 1);
-      startId = text9.indexOf("{marker");
+      text11 = text11.substr(endId + 1);
+      startId = text11.indexOf("{marker");
     }
     this.el = new Text_default({
       style: {
@@ -54158,30 +54254,34 @@ SliderTimelineModel2.defaultOption = inheritDefaultOption(TimelineModel_default.
   tooltip: {
     trigger: "item"
   },
-  symbol: "emptyCircle",
-  symbolSize: 10,
+  symbol: "circle",
+  symbolSize: 12,
   lineStyle: {
     show: true,
     width: 2,
-    color: "#304654"
+    color: "#DAE1F5"
   },
   label: {
     position: "auto",
     show: true,
     interval: "auto",
     rotate: 0,
-    color: "#304654"
+    color: "#A4B1D7"
   },
   itemStyle: {
-    color: "#304654",
+    color: "#A4B1D7",
     borderWidth: 1
   },
   checkpointStyle: {
     symbol: "circle",
-    symbolSize: 13,
-    color: "#c23531",
-    borderWidth: 5,
-    borderColor: "rgba(194,53,49, 0.5)",
+    symbolSize: 15,
+    color: "#316bf3",
+    borderColor: "#fff",
+    borderWidth: 2,
+    shadowBlur: 2,
+    shadowOffsetX: 1,
+    shadowOffsetY: 1,
+    shadowColor: "rgba(0, 0, 0, 0.3)",
     animation: true,
     animationDuration: 300,
     animationEasing: "quinticInOut"
@@ -54191,29 +54291,42 @@ SliderTimelineModel2.defaultOption = inheritDefaultOption(TimelineModel_default.
     showPlayBtn: true,
     showPrevBtn: true,
     showNextBtn: true,
-    itemSize: 22,
+    itemSize: 24,
     itemGap: 12,
     position: "left",
     playIcon: "path://M31.6,53C17.5,53,6,41.5,6,27.4S17.5,1.8,31.6,1.8C45.7,1.8,57.2,13.3,57.2,27.4S45.7,53,31.6,53z M31.6,3.3 C18.4,3.3,7.5,14.1,7.5,27.4c0,13.3,10.8,24.1,24.1,24.1C44.9,51.5,55.7,40.7,55.7,27.4C55.7,14.1,44.9,3.3,31.6,3.3z M24.9,21.3 c0-2.2,1.6-3.1,3.5-2l10.5,6.1c1.899,1.1,1.899,2.9,0,4l-10.5,6.1c-1.9,1.1-3.5,0.2-3.5-2V21.3z",
     stopIcon: "path://M30.9,53.2C16.8,53.2,5.3,41.7,5.3,27.6S16.8,2,30.9,2C45,2,56.4,13.5,56.4,27.6S45,53.2,30.9,53.2z M30.9,3.5C17.6,3.5,6.8,14.4,6.8,27.6c0,13.3,10.8,24.1,24.101,24.1C44.2,51.7,55,40.9,55,27.6C54.9,14.4,44.1,3.5,30.9,3.5z M36.9,35.8c0,0.601-0.4,1-0.9,1h-1.3c-0.5,0-0.9-0.399-0.9-1V19.5c0-0.6,0.4-1,0.9-1H36c0.5,0,0.9,0.4,0.9,1V35.8z M27.8,35.8 c0,0.601-0.4,1-0.9,1h-1.3c-0.5,0-0.9-0.399-0.9-1V19.5c0-0.6,0.4-1,0.9-1H27c0.5,0,0.9,0.4,0.9,1L27.8,35.8L27.8,35.8z",
-    nextIcon: "path://M18.6,50.8l22.5-22.5c0.2-0.2,0.3-0.4,0.3-0.7c0-0.3-0.1-0.5-0.3-0.7L18.7,4.4c-0.1-0.1-0.2-0.3-0.2-0.5 c0-0.4,0.3-0.8,0.8-0.8c0.2,0,0.5,0.1,0.6,0.3l23.5,23.5l0,0c0.2,0.2,0.3,0.4,0.3,0.7c0,0.3-0.1,0.5-0.3,0.7l-0.1,0.1L19.7,52 c-0.1,0.1-0.3,0.2-0.5,0.2c-0.4,0-0.8-0.3-0.8-0.8C18.4,51.2,18.5,51,18.6,50.8z",
-    prevIcon: "path://M43,52.8L20.4,30.3c-0.2-0.2-0.3-0.4-0.3-0.7c0-0.3,0.1-0.5,0.3-0.7L42.9,6.4c0.1-0.1,0.2-0.3,0.2-0.5 c0-0.4-0.3-0.8-0.8-0.8c-0.2,0-0.5,0.1-0.6,0.3L18.3,28.8l0,0c-0.2,0.2-0.3,0.4-0.3,0.7c0,0.3,0.1,0.5,0.3,0.7l0.1,0.1L41.9,54 c0.1,0.1,0.3,0.2,0.5,0.2c0.4,0,0.8-0.3,0.8-0.8C43.2,53.2,43.1,53,43,52.8z",
-    color: "#304654",
-    borderColor: "#304654",
+    nextIcon: "M2,18.5A1.52,1.52,0,0,1,.92,18a1.49,1.49,0,0,1,0-2.12L7.81,9.36,1,3.11A1.5,1.5,0,1,1,3,.89l8,7.34a1.48,1.48,0,0,1,.49,1.09,1.51,1.51,0,0,1-.46,1.1L3,18.08A1.5,1.5,0,0,1,2,18.5Z",
+    prevIcon: "M10,.5A1.52,1.52,0,0,1,11.08,1a1.49,1.49,0,0,1,0,2.12L4.19,9.64,11,15.89a1.5,1.5,0,1,1-2,2.22L1,10.77A1.48,1.48,0,0,1,.5,9.68,1.51,1.51,0,0,1,1,8.58L9,.92A1.5,1.5,0,0,1,10,.5Z",
+    prevBtnSize: 18,
+    nextBtnSize: 18,
+    color: "#A4B1D7",
+    borderColor: "#A4B1D7",
     borderWidth: 1
   },
   emphasis: {
     label: {
       show: true,
-      color: "#c23531"
+      color: "#6f778d"
     },
     itemStyle: {
-      color: "#c23531"
+      color: "#316BF3"
     },
     controlStyle: {
-      color: "#c23531",
-      borderColor: "#c23531",
+      color: "#316BF3",
+      borderColor: "#316BF3",
       borderWidth: 2
+    }
+  },
+  progress: {
+    lineStyle: {
+      color: "#316BF3"
+    },
+    itemStyle: {
+      color: "#316BF3"
+    },
+    label: {
+      color: "#6f778d"
     }
   },
   data: []
@@ -54276,6 +54389,7 @@ class SliderTimelineView2 extends TimelineView_default {
       this._position(layoutInfo, timelineModel);
     }
     this._doPlayStop();
+    this._updateTicksStatus();
   }
   remove() {
     this._clearTimer();
@@ -54436,7 +54550,7 @@ class SliderTimelineView2 extends TimelineView_default {
     if (!timelineModel.get(["lineStyle", "show"])) {
       return;
     }
-    group.add(new Line_default({
+    const line3 = new Line_default({
       shape: {
         x1: axisExtent[0],
         y1: 0,
@@ -54448,22 +54562,41 @@ class SliderTimelineView2 extends TimelineView_default {
       }, timelineModel.getModel("lineStyle").getLineStyle()),
       silent: true,
       z2: 1
-    }));
+    });
+    group.add(line3);
+    const progressLine = this._progressLine = new Line_default({
+      shape: {
+        x1: axisExtent[0],
+        x2: this._currentPointer ? this._currentPointer.x : axisExtent[0],
+        y1: 0,
+        y2: 0
+      },
+      style: defaults({
+        lineCap: "round",
+        lineWidth: line3.style.lineWidth
+      }, timelineModel.getModel(["progress", "lineStyle"]).getLineStyle()),
+      silent: true,
+      z2: 1
+    });
+    group.add(progressLine);
   }
   _renderAxisTick(layoutInfo, group, axis2, timelineModel) {
     const data = timelineModel.getData();
     const ticks = axis2.scale.getTicks();
-    each(ticks, function(value) {
+    this._tickSymbols = [];
+    each(ticks, (value) => {
       const tickCoord = axis2.dataToCoord(value);
       const itemModel = data.getItemModel(value);
       const itemStyleModel = itemModel.getModel("itemStyle");
       const hoverStyleModel = itemModel.getModel(["emphasis", "itemStyle"]);
+      const progressStyleModel = itemModel.getModel(["progress", "itemStyle"]);
       const symbolOpt = {
         position: [tickCoord, 0],
         onclick: bind(this._changeTimeline, this, value)
       };
       const el = giveSymbol(itemModel, itemStyleModel, group, symbolOpt);
       el.ensureState("emphasis").style = hoverStyleModel.getItemStyle();
+      el.ensureState("progress").style = progressStyleModel.getItemStyle();
       enableHoverEmphasis(el);
       const ecData = getECData(el);
       if (itemModel.get("tooltip")) {
@@ -54472,7 +54605,8 @@ class SliderTimelineView2 extends TimelineView_default {
       } else {
         ecData.dataIndex = ecData.dataModel = null;
       }
-    }, this);
+      this._tickSymbols.push(el);
+    });
   }
   _renderAxisLabel(layoutInfo, group, axis2, timelineModel) {
     const labelModel = axis2.getLabelModel();
@@ -54481,11 +54615,13 @@ class SliderTimelineView2 extends TimelineView_default {
     }
     const data = timelineModel.getData();
     const labels = axis2.getViewLabels();
-    each(labels, function(labelItem) {
+    this._tickLabels = [];
+    each(labels, (labelItem) => {
       const dataIndex = labelItem.tickValue;
       const itemModel = data.getItemModel(dataIndex);
       const normalLabelModel = itemModel.getModel("label");
       const hoverLabelModel = itemModel.getModel(["emphasis", "label"]);
+      const progressLabelModel = itemModel.getModel(["progress", "label"]);
       const tickCoord = axis2.dataToCoord(labelItem.tickValue);
       const textEl = new Text_default({
         x: tickCoord,
@@ -54500,25 +54636,28 @@ class SliderTimelineView2 extends TimelineView_default {
         })
       });
       textEl.ensureState("emphasis").style = createTextStyle(hoverLabelModel);
+      textEl.ensureState("progress").style = createTextStyle(progressLabelModel);
       group.add(textEl);
       enableHoverEmphasis(textEl);
-    }, this);
+      this._tickLabels.push(textEl);
+    });
   }
   _renderControl(layoutInfo, group, axis2, timelineModel) {
     const controlSize = layoutInfo.controlSize;
     const rotation = layoutInfo.rotation;
     const itemStyle5 = timelineModel.getModel("controlStyle").getItemStyle();
     const hoverStyle = timelineModel.getModel(["emphasis", "controlStyle"]).getItemStyle();
-    const rect = [0, -controlSize / 2, controlSize, controlSize];
     const playState = timelineModel.getPlayState();
     const inverse = timelineModel.get("inverse", true);
-    makeBtn(layoutInfo.nextBtnPosition, "nextIcon", bind(this._changeTimeline, this, inverse ? "-" : "+"));
-    makeBtn(layoutInfo.prevBtnPosition, "prevIcon", bind(this._changeTimeline, this, inverse ? "+" : "-"));
-    makeBtn(layoutInfo.playPosition, playState ? "stopIcon" : "playIcon", bind(this._handlePlayClick, this, !playState), true);
-    function makeBtn(position2, iconPath, onclick, willRotate) {
+    makeBtn(layoutInfo.nextBtnPosition, "next", bind(this._changeTimeline, this, inverse ? "-" : "+"));
+    makeBtn(layoutInfo.prevBtnPosition, "prev", bind(this._changeTimeline, this, inverse ? "+" : "-"));
+    makeBtn(layoutInfo.playPosition, playState ? "stop" : "play", bind(this._handlePlayClick, this, !playState), true);
+    function makeBtn(position2, iconName, onclick, willRotate) {
       if (!position2) {
         return;
       }
+      const iconSize = parsePercent(retrieve2(timelineModel.get(["controlStyle", iconName + "BtnSize"]), controlSize), controlSize);
+      const rect = [0, -iconSize / 2, iconSize, iconSize];
       const opt = {
         position: position2,
         origin: [controlSize / 2, 0],
@@ -54527,7 +54666,7 @@ class SliderTimelineView2 extends TimelineView_default {
         style: itemStyle5,
         onclick
       };
-      const btn = makeControlIcon(timelineModel, iconPath, rect, opt);
+      const btn = makeControlIcon(timelineModel, iconName + "Icon", rect, opt);
       btn.ensureState("emphasis").style = hoverStyle;
       group.add(btn);
       enableHoverEmphasis(btn);
@@ -54543,10 +54682,10 @@ class SliderTimelineView2 extends TimelineView_default {
         pointer.draggable = true;
         pointer.drift = bind(me._handlePointerDrag, me);
         pointer.ondragend = bind(me._handlePointerDragend, me);
-        pointerMoveTo(pointer, currentIndex, axis2, timelineModel, true);
+        pointerMoveTo(pointer, me._progressLine, currentIndex, axis2, timelineModel, true);
       },
       onUpdate(pointer) {
-        pointerMoveTo(pointer, currentIndex, axis2, timelineModel);
+        pointerMoveTo(pointer, me._progressLine, currentIndex, axis2, timelineModel);
       }
     };
     this._currentPointer = giveSymbol(pointerModel, pointerModel, this._mainGroup, {}, this._currentPointer, callback);
@@ -54574,6 +54713,8 @@ class SliderTimelineView2 extends TimelineView_default {
     toCoord < axisExtent[0] && (toCoord = axisExtent[0]);
     this._currentPointer.x = toCoord;
     this._currentPointer.markRedraw();
+    this._progressLine.shape.x2 = toCoord;
+    this._progressLine.dirty();
     const targetDataIndex = this._findNearestTick(toCoord);
     const timelineModel = this.model;
     if (trigger3 || targetDataIndex !== timelineModel.getCurrentIndex() && timelineModel.get("realtime")) {
@@ -54627,6 +54768,19 @@ class SliderTimelineView2 extends TimelineView_default {
       from: this.uid
     });
   }
+  _updateTicksStatus() {
+    const currentIndex = this.model.getCurrentIndex();
+    const tickSymbols = this._tickSymbols;
+    const tickLabels = this._tickLabels;
+    if (!(tickSymbols || tickLabels)) {
+      return;
+    }
+    const len2 = (tickSymbols || tickLabels).length;
+    for (let i = 0; i < len2; i++) {
+      tickSymbols && tickSymbols[i] && tickSymbols[i].toggleState("progress", i < currentIndex);
+      tickLabels && tickLabels[i] && tickLabels[i].toggleState("progress", i <= currentIndex);
+    }
+  }
 }
 SliderTimelineView2.type = "timeline.slider";
 function createScaleByModel(model64, axisType) {
@@ -54657,21 +54811,21 @@ function makeControlIcon(timelineModel, objPath, rect, opts) {
   const icon = makePath(timelineModel.get(["controlStyle", objPath]).replace(/^path:\/\//, ""), clone2(opts || {}), new BoundingRect_default(rect[0], rect[1], rect[2], rect[3]), "center");
   return icon;
 }
-function giveSymbol(hostModel, itemStyleModel, group, opt, symbol12, callback) {
+function giveSymbol(hostModel, itemStyleModel, group, opt, symbol14, callback) {
   const color8 = itemStyleModel.get("color");
-  if (!symbol12) {
+  if (!symbol14) {
     const symbolType = hostModel.get("symbol");
-    symbol12 = createSymbol(symbolType, -1, -1, 2, 2, color8);
-    symbol12.setStyle("strokeNoScale", true);
-    group.add(symbol12);
-    callback && callback.onCreate(symbol12);
+    symbol14 = createSymbol(symbolType, -1, -1, 2, 2, color8);
+    symbol14.setStyle("strokeNoScale", true);
+    group.add(symbol14);
+    callback && callback.onCreate(symbol14);
   } else {
-    symbol12.setColor(color8);
-    group.add(symbol12);
-    callback && callback.onUpdate(symbol12);
+    symbol14.setColor(color8);
+    group.add(symbol14);
+    callback && callback.onUpdate(symbol14);
   }
   const itemStyle5 = itemStyleModel.getItemStyle(["color"]);
-  symbol12.setStyle(itemStyle5);
+  symbol14.setStyle(itemStyle5);
   opt = merge({
     rectHover: true,
     z2: 100
@@ -54689,30 +54843,42 @@ function giveSymbol(hostModel, itemStyleModel, group, opt, symbol12, callback) {
   }
   const symbolRotate = hostModel.get("symbolRotate");
   opt.rotation = (symbolRotate || 0) * Math.PI / 180 || 0;
-  symbol12.attr(opt);
-  symbol12.updateTransform();
-  return symbol12;
+  symbol14.attr(opt);
+  symbol14.updateTransform();
+  return symbol14;
 }
-function pointerMoveTo(pointer, dataIndex, axis2, timelineModel, noAnimation) {
+function pointerMoveTo(pointer, progressLine, dataIndex, axis2, timelineModel, noAnimation) {
   if (pointer.dragging) {
     return;
   }
   const pointerModel = timelineModel.getModel("checkpointStyle");
   const toCoord = axis2.dataToCoord(timelineModel.getData().get("value", dataIndex));
   if (noAnimation || !pointerModel.get("animation", true)) {
-    pointer.x = toCoord;
-    pointer.y = 0;
+    pointer.attr({
+      x: toCoord,
+      y: 0
+    });
+    progressLine && progressLine.attr({
+      shape: {
+        x2: toCoord
+      }
+    });
   } else {
+    const animationCfg = {
+      duration: pointerModel.get("animationDuration", true),
+      easing: pointerModel.get("animationEasing", true)
+    };
     pointer.stopAnimation(null, true);
     pointer.animateTo({
       x: toCoord,
       y: 0
-    }, {
-      duration: pointerModel.get("animationDuration", true),
-      easing: pointerModel.get("animationEasing", true)
-    });
+    }, animationCfg);
+    progressLine && progressLine.animateTo({
+      shape: {
+        x2: toCoord
+      }
+    }, animationCfg);
   }
-  pointer.markRedraw();
 }
 Component_default2.registerClass(SliderTimelineView2);
 
@@ -55058,13 +55224,13 @@ class MarkPointView2 extends MarkerView_default {
     updateMarkerLayout(mpModel.getData(), seriesModel, api);
     mpData.each(function(idx) {
       const itemModel = mpData.getItemModel(idx);
-      let symbol12 = itemModel.getShallow("symbol");
+      let symbol14 = itemModel.getShallow("symbol");
       let symbolSize = itemModel.getShallow("symbolSize");
-      if (isFunction(symbol12) || isFunction(symbolSize)) {
+      if (isFunction(symbol14) || isFunction(symbolSize)) {
         const rawIdx = mpModel.getRawValue(idx);
         const dataParams = mpModel.getDataParams(idx);
-        if (isFunction(symbol12)) {
-          symbol12 = symbol12(rawIdx, dataParams);
+        if (isFunction(symbol14)) {
+          symbol14 = symbol14(rawIdx, dataParams);
         }
         if (isFunction(symbolSize)) {
           symbolSize = symbolSize(rawIdx, dataParams);
@@ -55076,7 +55242,7 @@ class MarkPointView2 extends MarkerView_default {
         style2.fill = color8;
       }
       mpData.setItemVisual(idx, {
-        symbol: symbol12,
+        symbol: symbol14,
         symbolSize,
         style: style2
       });
@@ -55995,7 +56161,7 @@ class LegendView2 extends Component_default2 {
       if (seriesModel) {
         const data = seriesModel.getData();
         const style2 = data.getVisual("style");
-        const color8 = style2.fill;
+        const color8 = style2[data.getVisual("drawType")] || style2.fill;
         const borderColor = style2.stroke;
         const legendSymbolType = data.getVisual("legendSymbol") || "roundRect";
         const symbolType = data.getVisual("symbol");
@@ -56186,19 +56352,19 @@ class LegendView2 extends Component_default2 {
   }
 }
 LegendView2.type = "legend.plain";
-function setSymbolStyle(symbol12, symbolType, legendModelItemStyle, borderColor, inactiveBorderColor, isSelected) {
+function setSymbolStyle(symbol14, symbolType, legendModelItemStyle, borderColor, inactiveBorderColor, isSelected) {
   let itemStyle5;
   if (symbolType !== "line" && symbolType.indexOf("empty") < 0) {
     itemStyle5 = legendModelItemStyle.getItemStyle();
-    symbol12.style.stroke = borderColor;
+    symbol14.style.stroke = borderColor;
     if (!isSelected) {
       itemStyle5.stroke = inactiveBorderColor;
     }
   } else {
     itemStyle5 = legendModelItemStyle.getItemStyle(["borderWidth", "borderColor"]);
   }
-  symbol12.setStyle(itemStyle5);
-  return symbol12;
+  symbol14.setStyle(itemStyle5);
+  return symbol14;
 }
 function dispatchSelectAction(seriesName, dataName, api, excludeSeriesId) {
   dispatchDownplayAction(seriesName, dataName, api, excludeSeriesId);
@@ -56208,9 +56374,18 @@ function dispatchSelectAction(seriesName, dataName, api, excludeSeriesId) {
   });
   dispatchHighlightAction(seriesName, dataName, api, excludeSeriesId);
 }
+function isUseHoverLayer(api) {
+  const list = api.getZr().storage.getDisplayList();
+  let emphasisState;
+  let i = 0;
+  const len2 = list.length;
+  while (!(emphasisState = list[i].states.emphasis) && i < len2) {
+    i++;
+  }
+  return emphasisState && emphasisState.hoverLayer;
+}
 function dispatchHighlightAction(seriesName, dataName, api, excludeSeriesId) {
-  const el = api.getZr().storage.getDisplayList()[0];
-  if (!(el && el.useHoverLayer)) {
+  if (!isUseHoverLayer(api)) {
     api.dispatchAction({
       type: "highlight",
       seriesName,
@@ -56220,8 +56395,7 @@ function dispatchHighlightAction(seriesName, dataName, api, excludeSeriesId) {
   }
 }
 function dispatchDownplayAction(seriesName, dataName, api, excludeSeriesId) {
-  const el = api.getZr().storage.getDisplayList()[0];
-  if (!(el && el.useHoverLayer)) {
+  if (!isUseHoverLayer(api)) {
     api.dispatchAction({
       type: "downplay",
       seriesName,
@@ -56608,24 +56782,35 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
   height: "ph",
   left: null,
   bottom: null,
+  borderColor: "#d2dbee",
+  borderRadius: 3,
   backgroundColor: "rgba(47,69,84,0)",
   dataBackground: {
     lineStyle: {
-      color: "#2f4554",
-      width: 0.5,
-      opacity: 0.3
+      color: "#d2dbee",
+      width: 0.5
     },
     areaStyle: {
-      color: "rgba(47,69,84,0.3)",
-      opacity: 0.3
+      color: "#d2dbee",
+      opacity: 0.2
     }
   },
-  borderColor: "#ddd",
-  fillerColor: "rgba(167,183,204,0.4)",
-  handleIcon: "M8.2,13.6V3.9H6.3v9.7H3.1v14.9h3.3v9.7h1.8v-9.7h3.3V13.6H8.2z M9.7,24.4H4.8v-1.4h4.9V24.4z M9.7,19.1H4.8v-1.4h4.9V19.1z",
+  selectedDataBackground: {
+    lineStyle: {
+      color: "#8fb0f7",
+      width: 0.5
+    },
+    areaStyle: {
+      color: "#8fb0f7",
+      opacity: 0.2
+    }
+  },
+  fillerColor: "rgba(135,175,274,0.2)",
+  handleIcon: "path://M-9.35,34.56V42m0-40V9.5m-2,0h4a2,2,0,0,1,2,2v21a2,2,0,0,1-2,2h-4a2,2,0,0,1-2-2v-21A2,2,0,0,1-11.35,9.5Z",
   handleSize: "100%",
   handleStyle: {
-    color: "#a7b7cc"
+    color: "#fff",
+    borderColor: "#ACB8D1"
   },
   showDetail: true,
   showDataShadow: "auto",
@@ -56633,6 +56818,12 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
   zoomLock: false,
   textStyle: {
     color: "#333"
+  },
+  emphasis: {
+    handleStyle: {
+      borderColor: "#8FB0F7",
+      borderWidth: 2
+    }
   }
 });
 Component_default.registerClass(SliderZoomModel);
@@ -56685,7 +56876,7 @@ class SliderZoomView extends DataZoomView_default {
     thisGroup.removeAll();
     this._resetLocation();
     this._resetInterval();
-    const barGroup = this._displayables.barGroup = new Group_default();
+    const barGroup = this._displayables.sliderGroup = new Group_default();
     this._renderBackground();
     this._renderHandle();
     this._renderDataShadow();
@@ -56731,9 +56922,9 @@ class SliderZoomView extends DataZoomView_default {
     const orient = this._orient;
     const targetAxisModel = this.dataZoomModel.getFirstTargetAxisModel();
     const inverse = targetAxisModel && targetAxisModel.get("inverse");
-    const barGroup = this._displayables.barGroup;
+    const sliderGroup = this._displayables.sliderGroup;
     const otherAxisInverse = (this._dataShadowInfo || {}).otherAxisInverse;
-    barGroup.attr(orient === HORIZONTAL && !inverse ? {
+    sliderGroup.attr(orient === HORIZONTAL && !inverse ? {
       scaleY: otherAxisInverse ? 1 : -1,
       scaleX: 1
     } : orient === HORIZONTAL && inverse ? {
@@ -56748,7 +56939,7 @@ class SliderZoomView extends DataZoomView_default {
       scaleX: -1,
       rotation: Math.PI / 2
     });
-    const rect = thisGroup.getBoundingRect([barGroup]);
+    const rect = thisGroup.getBoundingRect([sliderGroup]);
     thisGroup.x = location.x - rect.x;
     thisGroup.y = location.y - rect.y;
     thisGroup.markRedraw();
@@ -56759,7 +56950,7 @@ class SliderZoomView extends DataZoomView_default {
   _renderBackground() {
     const dataZoomModel = this.dataZoomModel;
     const size = this._size;
-    const barGroup = this._displayables.barGroup;
+    const barGroup = this._displayables.sliderGroup;
     barGroup.add(new Rect6({
       silent: true,
       shape: {
@@ -56789,6 +56980,7 @@ class SliderZoomView extends DataZoomView_default {
   }
   _renderDataShadow() {
     const info = this._dataShadowInfo = this._prepareDataShadowInfo();
+    this._displayables.dataShadowSegs = [];
     if (!info) {
       return;
     }
@@ -56830,24 +57022,36 @@ class SliderZoomView extends DataZoomView_default {
       lastIsEmpty = isEmpty;
     });
     const dataZoomModel = this.dataZoomModel;
-    this._displayables.barGroup.add(new Polygon_default({
-      shape: {
-        points: areaPoints
-      },
-      style: defaults({
-        fill: dataZoomModel.get("dataBackgroundColor")
-      }, dataZoomModel.getModel(["dataBackground", "areaStyle"]).getAreaStyle()),
-      silent: true,
-      z2: -20
-    }));
-    this._displayables.barGroup.add(new Polyline_default({
-      shape: {
-        points: linePoints
-      },
-      style: dataZoomModel.getModel(["dataBackground", "lineStyle"]).getLineStyle(),
-      silent: true,
-      z2: -19
-    }));
+    function createDataShadowGroup(isSelectedArea) {
+      const model64 = dataZoomModel.getModel(isSelectedArea ? "selectedDataBackground" : "dataBackground");
+      const group = new Group_default();
+      const polygon = new Polygon_default({
+        shape: {
+          points: areaPoints
+        },
+        segmentIgnoreThreshold: 1,
+        style: model64.getModel("areaStyle").getAreaStyle(),
+        silent: true,
+        z2: -20
+      });
+      const polyline = new Polyline_default({
+        shape: {
+          points: linePoints
+        },
+        segmentIgnoreThreshold: 1,
+        style: model64.getModel("lineStyle").getLineStyle(),
+        silent: true,
+        z2: -19
+      });
+      group.add(polygon);
+      group.add(polyline);
+      return group;
+    }
+    for (let i = 0; i < 3; i++) {
+      const group = createDataShadowGroup(i === 1);
+      this._displayables.sliderGroup.add(group);
+      this._displayables.dataShadowSegs.push(group);
+    }
   }
   _prepareDataShadowInfo() {
     const dataZoomModel = this.dataZoomModel;
@@ -56889,10 +57093,11 @@ class SliderZoomView extends DataZoomView_default {
     const displaybles = this._displayables;
     const handles = displaybles.handles = [null, null];
     const handleLabels = displaybles.handleLabels = [null, null];
-    const barGroup = this._displayables.barGroup;
+    const sliderGroup = this._displayables.sliderGroup;
     const size = this._size;
     const dataZoomModel = this.dataZoomModel;
-    barGroup.add(displaybles.filler = new Rect6({
+    const borderRadius = dataZoomModel.get("borderRadius") || 0;
+    sliderGroup.add(displaybles.filler = new Rect6({
       draggable: true,
       cursor: getCursor(this._orient),
       drift: bind(this._onDragMove, this, "all"),
@@ -56907,14 +57112,15 @@ class SliderZoomView extends DataZoomView_default {
         position: "inside"
       }
     }));
-    barGroup.add(new Rect6({
+    sliderGroup.add(new Rect6({
       silent: true,
       subPixelOptimize: true,
       shape: {
         x: 0,
         y: 0,
         width: size[0],
-        height: size[1]
+        height: size[1],
+        r: borderRadius
       },
       style: {
         stroke: dataZoomModel.get("dataBackgroundColor") || dataZoomModel.get("borderColor"),
@@ -56923,28 +57129,36 @@ class SliderZoomView extends DataZoomView_default {
       }
     }));
     each([0, 1], function(handleIndex) {
-      const path2 = createIcon(dataZoomModel.get("handleIcon"), {
+      let iconStr = dataZoomModel.get("handleIcon");
+      if (!symbolBuildProxies[iconStr] && iconStr.indexOf("path://") < 0) {
+        iconStr = "path://" + iconStr;
+        if (__DEV__) {
+          deprecateLog("handleIcon now needs 'path://' prefix when using a path string");
+        }
+      }
+      const path2 = createSymbol(iconStr, -1, 0, 2, 2, null, true);
+      path2.attr({
         cursor: getCursor(this._orient),
         draggable: true,
         drift: bind(this._onDragMove, this, handleIndex),
         ondragend: bind(this._onDragEnd, this),
         onmouseover: bind(this._showDataInfo, this, true),
         onmouseout: bind(this._showDataInfo, this, false)
-      }, {
-        x: -1,
-        y: 0,
-        width: 2,
-        height: 2
       });
       const bRect = path2.getBoundingRect();
-      this._handleHeight = parsePercent3(dataZoomModel.get("handleSize"), this._size[1]);
+      const handleSize = dataZoomModel.get("handleSize");
+      this._handleHeight = parsePercent3(handleSize, this._size[1]);
       this._handleWidth = bRect.width / bRect.height * this._handleHeight;
       path2.setStyle(dataZoomModel.getModel("handleStyle").getItemStyle());
+      path2.style.strokeNoScale = true;
+      path2.rectHover = true;
+      path2.ensureState("emphasis").style = dataZoomModel.getModel(["emphasis", "handleStyle"]).getItemStyle();
+      enableHoverEmphasis(path2);
       const handleColor = dataZoomModel.get("handleColor");
       if (handleColor != null) {
         path2.style.fill = handleColor;
       }
-      barGroup.add(handles[handleIndex] = path2);
+      sliderGroup.add(handles[handleIndex] = path2);
       const textStyleModel = dataZoomModel.getModel("textStyle");
       this.group.add(handleLabels[handleIndex] = new Text_default({
         silent: true,
@@ -56999,6 +57213,22 @@ class SliderZoomView extends DataZoomView_default {
       width: handleInterval[1] - handleInterval[0],
       height: size[1]
     });
+    const dataShadowSegs = displaybles.dataShadowSegs;
+    const segIntervals = [0, handleInterval[0], handleInterval[1], size[0]];
+    for (let i = 0; i < dataShadowSegs.length; i++) {
+      const segGroup = dataShadowSegs[i];
+      let clipPath = segGroup.getClipPath();
+      if (!clipPath) {
+        clipPath = new Rect_default();
+        segGroup.setClipPath(clipPath);
+      }
+      clipPath.setShape({
+        x: segIntervals[i],
+        y: 0,
+        width: segIntervals[i + 1] - segIntervals[i],
+        height: size[1]
+      });
+    }
     this._updateDataInfo(nonRealtime);
   }
   _updateDataInfo(nonRealtime) {
@@ -57055,7 +57285,7 @@ class SliderZoomView extends DataZoomView_default {
   _onDragMove(handleIndex, dx, dy, event3) {
     this._dragging = true;
     stop(event3.event);
-    const barTransform = this._displayables.barGroup.getLocalTransform();
+    const barTransform = this._displayables.sliderGroup.getLocalTransform();
     const vertex = applyTransform2([dx, dy], barTransform, true);
     const changed = this._updateInterval(handleIndex, vertex[0]);
     const realtime = this.dataZoomModel.get("realtime");
@@ -57070,7 +57300,7 @@ class SliderZoomView extends DataZoomView_default {
   }
   _onClickPanelClick(e) {
     const size = this._size;
-    const localPoint = this._displayables.barGroup.transformCoordToLocal(e.offsetX, e.offsetY);
+    const localPoint = this._displayables.sliderGroup.transformCoordToLocal(e.offsetX, e.offsetY);
     if (localPoint[0] < 0 || localPoint[0] > size[0] || localPoint[1] < 0 || localPoint[1] > size[1]) {
       return;
     }
@@ -57765,8 +57995,8 @@ class VisualMapModel5 extends Component_default {
         if (visuals.symbolSize == null) {
           visuals.symbolSize = symbolSizeExists && clone2(symbolSizeExists) || (isCategory2 ? itemSize[0] : [itemSize[0], itemSize[0]]);
         }
-        visuals.symbol = mapVisual2(visuals.symbol, function(symbol12) {
-          return symbol12 === "none" || symbol12 === "square" ? "roundRect" : symbol12;
+        visuals.symbol = mapVisual2(visuals.symbol, function(symbol14) {
+          return symbol14 === "none" || symbol14 === "square" ? "roundRect" : symbol14;
         });
         const symbolSize = visuals.symbolSize;
         if (symbolSize != null) {
@@ -57871,7 +58101,7 @@ class ContinuousModel extends VisualMapModel_default {
     each(this.stateList, function(state) {
       const symbolSize = this.option.controller[state].symbolSize;
       if (symbolSize && symbolSize[0] !== symbolSize[1]) {
-        symbolSize[0] = 0;
+        symbolSize[0] = symbolSize[1] / 3;
       }
     }, this);
   }
@@ -57952,7 +58182,23 @@ ContinuousModel.defaultOption = inheritDefaultOption(VisualMapModel_default.defa
   align: "auto",
   calculable: false,
   hoverLink: true,
-  realtime: true
+  realtime: true,
+  handleIcon: "path://M-11.39,9.77h0a3.5,3.5,0,0,1-3.5,3.5h-22a3.5,3.5,0,0,1-3.5-3.5h0a3.5,3.5,0,0,1,3.5-3.5h22A3.5,3.5,0,0,1-11.39,9.77Z",
+  handleSize: "120%",
+  handleStyle: {
+    borderColor: "#fff",
+    borderWidth: 1
+  },
+  indicatorIcon: "circle",
+  indicatorSize: "50%",
+  indicatorStyle: {
+    borderColor: "#fff",
+    borderWidth: 2,
+    shadowBlur: 2,
+    shadowOffsetX: 1,
+    shadowOffsetY: 1,
+    shadowColor: "rgba(0,0,0,0.2)"
+  }
 });
 function getColorStopValues(visualMapModel, valueState, dataExtent) {
   if (dataExtent[0] === dataExtent[1]) {
@@ -58141,12 +58387,12 @@ class ContinuousView extends VisualMapView_default {
     if (!dataRangeText) {
       return;
     }
-    let text9 = dataRangeText[1 - endsIndex];
-    text9 = text9 != null ? text9 + "" : "";
+    let text11 = dataRangeText[1 - endsIndex];
+    text11 = text11 != null ? text11 + "" : "";
     const visualMapModel = this.visualMapModel;
     const textGap = visualMapModel.get("textGap");
     const itemSize = visualMapModel.itemSize;
-    const barGroup = this._shapes.barGroup;
+    const barGroup = this._shapes.mainGroup;
     const position2 = this._applyTransform([itemSize[0] / 2, endsIndex === 0 ? -textGap : itemSize[1] + textGap], barGroup);
     const align = this._applyTransform(endsIndex === 0 ? "bottom" : "top", barGroup);
     const orient = this._orient;
@@ -58157,7 +58403,7 @@ class ContinuousView extends VisualMapView_default {
         y: position2[1],
         verticalAlign: orient === "horizontal" ? "middle" : align,
         align: orient === "horizontal" ? align : "center",
-        text: text9,
+        text: text11,
         font: textStyleModel.getFont(),
         fill: textStyleModel.getTextColor()
       }
@@ -58170,29 +58416,60 @@ class ContinuousView extends VisualMapView_default {
     const orient = this._orient;
     const useHandle = this._useHandle;
     const itemAlign = getItemAlign(visualMapModel, this.api, itemSize);
-    const barGroup = shapes.barGroup = this._createBarGroup(itemAlign);
-    barGroup.add(shapes.outOfRange = createPolygon());
-    barGroup.add(shapes.inRange = createPolygon(null, useHandle ? getCursor2(this._orient) : null, bind(this._dragHandle, this, "all", false), bind(this._dragHandle, this, "all", true)));
+    const mainGroup = shapes.mainGroup = this._createBarGroup(itemAlign);
+    const gradientBarGroup = new Group_default();
+    mainGroup.add(gradientBarGroup);
+    gradientBarGroup.add(shapes.outOfRange = createPolygon());
+    gradientBarGroup.add(shapes.inRange = createPolygon(null, useHandle ? getCursor2(this._orient) : null, bind(this._dragHandle, this, "all", false), bind(this._dragHandle, this, "all", true)));
+    gradientBarGroup.setClipPath(new Rect_default({
+      shape: {
+        x: 0,
+        y: 0,
+        width: itemSize[0],
+        height: itemSize[1],
+        r: 3
+      }
+    }));
     const textRect = visualMapModel.textStyleModel.getTextRect("国");
     const textSize = mathMax7(textRect.width, textRect.height);
     if (useHandle) {
       shapes.handleThumbs = [];
       shapes.handleLabels = [];
       shapes.handleLabelPoints = [];
-      this._createHandle(barGroup, 0, itemSize, textSize, orient);
-      this._createHandle(barGroup, 1, itemSize, textSize, orient);
+      this._createHandle(visualMapModel, mainGroup, 0, itemSize, textSize, orient);
+      this._createHandle(visualMapModel, mainGroup, 1, itemSize, textSize, orient);
     }
-    this._createIndicator(barGroup, itemSize, textSize, orient);
-    targetGroup.add(barGroup);
+    this._createIndicator(visualMapModel, mainGroup, itemSize, textSize, orient);
+    targetGroup.add(mainGroup);
   }
-  _createHandle(barGroup, handleIndex, itemSize, textSize, orient) {
+  _createHandle(visualMapModel, mainGroup, handleIndex, itemSize, textSize, orient) {
     const onDrift = bind(this._dragHandle, this, handleIndex, false);
     const onDragEnd = bind(this._dragHandle, this, handleIndex, true);
-    const handleThumb = createPolygon(createHandlePoints(handleIndex, textSize), getCursor2(this._orient), onDrift, onDragEnd);
-    handleThumb.x = itemSize[0];
-    barGroup.add(handleThumb);
+    const handleSize = parsePercent(visualMapModel.get("handleSize"), itemSize[0]);
+    const handleThumb = createSymbol(visualMapModel.get("handleIcon"), -handleSize / 2, -handleSize / 2, handleSize, handleSize, null, true);
+    const cursor = getCursor2(this._orient);
+    handleThumb.attr({
+      cursor,
+      draggable: true,
+      drift: onDrift,
+      ondragend: onDragEnd,
+      onmousemove(e) {
+        stop(e.event);
+      }
+    });
+    handleThumb.x = itemSize[0] / 2;
+    handleThumb.useStyle(visualMapModel.getModel("handleStyle").getItemStyle());
+    handleThumb.setStyle({
+      strokeNoScale: true,
+      strokeFirst: true
+    });
+    handleThumb.style.lineWidth *= 2;
+    handleThumb.ensureState("emphasis").style = visualMapModel.getModel(["emphasis", "handleStyle"]).getItemStyle();
+    setAsHighDownDispatcher(handleThumb, true);
+    mainGroup.add(handleThumb);
     const textStyleModel = this.visualMapModel.textStyleModel;
     const handleLabel = new Text_default({
+      cursor,
       draggable: true,
       drift: onDrift,
       onmousemove(e) {
@@ -58207,21 +58484,42 @@ class ContinuousView extends VisualMapView_default {
         fill: textStyleModel.getTextColor()
       }
     });
+    handleLabel.ensureState("blur").style = {
+      opacity: 0.1
+    };
+    handleLabel.stateTransition = {
+      duration: 200
+    };
     this.group.add(handleLabel);
-    const handleLabelPoint = [orient === "horizontal" ? textSize / 2 : textSize * 1.5, orient === "horizontal" ? handleIndex === 0 ? -(textSize * 1.5) : textSize * 1.5 : handleIndex === 0 ? -textSize / 2 : textSize / 2];
+    const handleLabelPoint = [handleSize, 0];
     const shapes = this._shapes;
     shapes.handleThumbs[handleIndex] = handleThumb;
     shapes.handleLabelPoints[handleIndex] = handleLabelPoint;
     shapes.handleLabels[handleIndex] = handleLabel;
   }
-  _createIndicator(barGroup, itemSize, textSize, orient) {
-    const indicator = createPolygon([[0, 0]], "move");
-    indicator.x = itemSize[0];
+  _createIndicator(visualMapModel, mainGroup, itemSize, textSize, orient) {
+    const scale4 = parsePercent(visualMapModel.get("indicatorSize"), itemSize[0]);
+    const indicator = createSymbol(visualMapModel.get("indicatorIcon"), -scale4 / 2, -scale4 / 2, scale4, scale4, null, true);
     indicator.attr({
+      cursor: "move",
       invisible: true,
-      silent: true
+      silent: true,
+      x: itemSize[0] / 2
     });
-    barGroup.add(indicator);
+    const indicatorStyle = visualMapModel.getModel("indicatorStyle").getItemStyle();
+    if (indicator instanceof Image_default) {
+      const pathStyle = indicator.style;
+      indicator.useStyle(extend({
+        image: pathStyle.image,
+        x: pathStyle.x,
+        y: pathStyle.y,
+        width: pathStyle.width,
+        height: pathStyle.height
+      }, indicatorStyle));
+    } else {
+      indicator.useStyle(indicatorStyle);
+    }
+    mainGroup.add(indicator);
     const textStyleModel = this.visualMapModel.textStyleModel;
     const indicatorLabel = new Text_default({
       silent: true,
@@ -58235,11 +58533,12 @@ class ContinuousView extends VisualMapView_default {
       }
     });
     this.group.add(indicatorLabel);
-    const indicatorLabelPoint = [orient === "horizontal" ? textSize / 2 : HOVER_LINK_OUT + 3, 0];
+    const indicatorLabelPoint = [(orient === "horizontal" ? textSize / 2 : HOVER_LINK_OUT) + itemSize[0] / 2, 0];
     const shapes = this._shapes;
     shapes.indicator = indicator;
     shapes.indicatorLabel = indicatorLabel;
     shapes.indicatorLabelPoint = indicatorLabelPoint;
+    this._firstShowIndicator = true;
   }
   _dragHandle(handleIndex, isEnd, dx, dy) {
     if (!this._useHandle) {
@@ -58247,8 +58546,9 @@ class ContinuousView extends VisualMapView_default {
     }
     this._dragging = !isEnd;
     if (!isEnd) {
-      const vertex = this._applyTransform([dx, dy], this._shapes.barGroup, true);
+      const vertex = this._applyTransform([dx, dy], this._shapes.mainGroup, true);
       this._updateInterval(handleIndex, vertex[1]);
+      this._hideIndicator();
       this._updateView();
     }
     if (isEnd === !this.visualMapModel.get("realtime")) {
@@ -58363,17 +58663,23 @@ class ContinuousView extends VisualMapView_default {
     const visualMapModel = this.visualMapModel;
     const handleThumbs = shapes.handleThumbs;
     const handleLabels = shapes.handleLabels;
+    const itemSize = visualMapModel.itemSize;
+    const dataExtent = visualMapModel.getExtent();
     each11([0, 1], function(handleIndex) {
       const handleThumb = handleThumbs[handleIndex];
       handleThumb.setStyle("fill", visualInRange.handlesColor[handleIndex]);
       handleThumb.y = handleEnds[handleIndex];
+      const val = linearMap2(handleEnds[handleIndex], [0, itemSize[1]], dataExtent, true);
+      const symbolSize = this.getControllerVisual(val, "symbolSize");
+      handleThumb.scaleX = handleThumb.scaleY = symbolSize / itemSize[0];
+      handleThumb.x = itemSize[0] - symbolSize / 2;
       const textPoint = applyTransform2(shapes.handleLabelPoints[handleIndex], getTransform(handleThumb, this.group));
       handleLabels[handleIndex].setStyle({
         x: textPoint[0],
         y: textPoint[1],
         text: visualMapModel.formatValueText(this._dataInterval[handleIndex]),
         verticalAlign: "middle",
-        align: this._applyTransform(this._orient === "horizontal" ? handleIndex === 0 ? "bottom" : "top" : "left", shapes.barGroup)
+        align: this._orient === "vertical" ? this._applyTransform("left", shapes.mainGroup) : "center"
       });
     }, this);
   }
@@ -58382,41 +58688,78 @@ class ContinuousView extends VisualMapView_default {
     const dataExtent = visualMapModel.getExtent();
     const itemSize = visualMapModel.itemSize;
     const sizeExtent = [0, itemSize[1]];
-    const pos = linearMap2(cursorValue, dataExtent, sizeExtent, true);
     const shapes = this._shapes;
     const indicator = shapes.indicator;
     if (!indicator) {
       return;
     }
-    indicator.y = pos;
     indicator.attr("invisible", false);
-    indicator.setShape("points", createIndicatorPoints(!!rangeSymbol, halfHoverLinkSize, pos, itemSize[1]));
     const opts = {
       convertOpacityToAlpha: true
     };
     const color8 = this.getControllerVisual(cursorValue, "color", opts);
-    indicator.setStyle("fill", color8);
+    const symbolSize = this.getControllerVisual(cursorValue, "symbolSize");
+    const y = linearMap2(cursorValue, dataExtent, sizeExtent, true);
+    const x = itemSize[0] - symbolSize / 2;
+    const oldIndicatorPos = {
+      x: indicator.x,
+      y: indicator.y
+    };
+    indicator.y = y;
+    indicator.x = x;
     const textPoint = applyTransform2(shapes.indicatorLabelPoint, getTransform(indicator, this.group));
     const indicatorLabel = shapes.indicatorLabel;
     indicatorLabel.attr("invisible", false);
-    const align = this._applyTransform("left", shapes.barGroup);
+    const align = this._applyTransform("left", shapes.mainGroup);
     const orient = this._orient;
     const isHorizontal = orient === "horizontal";
     indicatorLabel.setStyle({
       text: (rangeSymbol ? rangeSymbol : "") + visualMapModel.formatValueText(textValue),
       verticalAlign: isHorizontal ? align : "middle",
-      align: isHorizontal ? "center" : align,
-      x: textPoint[0],
-      y: textPoint[1]
+      align: isHorizontal ? "center" : align
     });
+    const indicatorNewProps = {
+      x,
+      y,
+      style: {
+        fill: color8
+      }
+    };
+    const labelNewProps = {
+      style: {
+        x: textPoint[0],
+        y: textPoint[1]
+      }
+    };
+    if (visualMapModel.ecModel.isAnimationEnabled() && !this._firstShowIndicator) {
+      const animationCfg = {
+        duration: 100,
+        easing: "cubicInOut",
+        additive: true
+      };
+      indicator.x = oldIndicatorPos.x;
+      indicator.y = oldIndicatorPos.y;
+      indicator.animateTo(indicatorNewProps, animationCfg);
+      indicatorLabel.animateTo(labelNewProps, animationCfg);
+    } else {
+      indicator.attr(indicatorNewProps);
+      indicatorLabel.attr(labelNewProps);
+    }
+    this._firstShowIndicator = false;
+    const handleLabels = this._shapes.handleLabels;
+    if (handleLabels) {
+      for (let i = 0; i < handleLabels.length; i++) {
+        enterBlur(handleLabels[i]);
+      }
+    }
   }
   _enableHoverLinkToSeries() {
     const self2 = this;
-    this._shapes.barGroup.on("mousemove", function(e) {
+    this._shapes.mainGroup.on("mousemove", function(e) {
       self2._hovering = true;
       if (!self2._dragging) {
         const itemSize = self2.visualMapModel.itemSize;
-        const pos = self2._applyTransform([e.offsetX, e.offsetY], self2._shapes.barGroup, true, true);
+        const pos = self2._applyTransform([e.offsetX, e.offsetY], self2._shapes.mainGroup, true, true);
         pos[1] = mathMin7(mathMax7(0, pos[1]), itemSize[1]);
         self2._doHoverLinkToSeries(pos[1], 0 <= pos[0] && pos[0] <= itemSize[0]);
       }
@@ -58488,6 +58831,12 @@ class ContinuousView extends VisualMapView_default {
     const shapes = this._shapes;
     shapes.indicator && shapes.indicator.attr("invisible", true);
     shapes.indicatorLabel && shapes.indicatorLabel.attr("invisible", true);
+    const handleLabels = this._shapes.handleLabels;
+    if (handleLabels) {
+      for (let i = 0; i < handleLabels.length; i++) {
+        leaveBlur(handleLabels[i]);
+      }
+    }
   }
   _clearHoverLinkToSeries() {
     this._hideIndicator();
@@ -58534,12 +58883,6 @@ function createPolygon(points9, cursor, onDrift, onDragEnd) {
     },
     ondragend: onDragEnd
   });
-}
-function createHandlePoints(handleIndex, textSize) {
-  return handleIndex === 0 ? [[0, 0], [textSize, 0], [textSize, -textSize]] : [[0, 0], [textSize, 0], [textSize, textSize]];
-}
-function createIndicatorPoints(isRange, halfHoverLinkSize, pos, extentMax) {
-  return isRange ? [[0, -mathMin7(halfHoverLinkSize, mathMax7(pos, 0))], [HOVER_LINK_OUT, 0], [0, mathMin7(halfHoverLinkSize, mathMax7(extentMax - pos, 0))]] : [[0, 0], [5, -5], [5, 5]];
 }
 function getHalfHoverLinkSize(visualMapModel, dataExtent, sizeExtent) {
   let halfHoverLinkSize = HOVER_LINK_SIZE / 2;
@@ -58964,8 +59307,8 @@ class PiecewiseVisualMapView extends VisualMapView_default {
       return align;
     }
   }
-  _renderEndsText(group, text9, itemSize, showLabel, itemAlign) {
-    if (!text9) {
+  _renderEndsText(group, text11, itemSize, showLabel, itemAlign) {
+    if (!text11) {
       return;
     }
     const itemGroup = new Group_default();
@@ -58976,7 +59319,7 @@ class PiecewiseVisualMapView extends VisualMapView_default {
         y: itemSize[1] / 2,
         verticalAlign: "middle",
         align: showLabel ? itemAlign : "center",
-        text: text9,
+        text: text11,
         font: textStyleModel.getFont(),
         fill: textStyleModel.getTextColor()
       }
@@ -59115,6 +59458,9 @@ function bindStyle(svgEl, style2, el) {
   }
 }
 function pathDataToString(path2) {
+  if (!path2) {
+    return "";
+  }
   const str = [];
   const data = path2.data;
   const dataLength = path2.len();
@@ -59176,6 +59522,9 @@ function pathDataToString(path2) {
         }
         x = round4(cx + rx * mathCos3(theta + dTheta));
         y = round4(cy + ry * mathSin3(theta + dTheta));
+        if (isNaN(x0) || isNaN(y0) || isNaN(rx) || isNaN(ry) || isNaN(psi) || isNaN(degree) || isNaN(x) || isNaN(y)) {
+          return "";
+        }
         str.push("A", round4(rx), round4(ry), mathRound(psi * degree), +large, +clockwise, x, y);
         break;
       case CMD3.Z:
@@ -59186,15 +59535,34 @@ function pathDataToString(path2) {
         y = round4(data[i++]);
         const w = round4(data[i++]);
         const h = round4(data[i++]);
+        if (isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) {
+          return "";
+        }
         str.push("M", x, y, "L", x + w, y, "L", x + w, y + h, "L", x, y + h, "L", x, y);
         break;
     }
     cmdStr && str.push(cmdStr);
     for (let j = 0; j < nData; j++) {
-      str.push(round4(data[i++]));
+      const val = round4(data[i++]);
+      if (isNaN(val)) {
+        return "";
+      }
+      str.push(val);
     }
   }
   return str.join(" ");
+}
+function wrapSVGBuildPath(el) {
+  if (!el.__svgBuildPath) {
+    const oldBuildPath = el.buildPath;
+    el.__svgBuildPath = el.buildPath = function(path2, shape, inBundle) {
+      oldBuildPath.call(this, el.path, shape, inBundle);
+      el.__svgPathStr = pathDataToString(el.path);
+    };
+    if (!el.shapeChanged()) {
+      el.__svgPathStr = pathDataToString(el.path);
+    }
+  }
 }
 const svgPath = {
   brush(el) {
@@ -59208,15 +59576,13 @@ const svgPath = {
       el.createPathProxy();
     }
     const path2 = el.path;
+    wrapSVGBuildPath(el);
     if (el.shapeChanged()) {
       path2.beginPath();
       el.buildPath(path2, el.shape);
       el.pathUpdated();
-      const pathStr = pathDataToString(path2);
-      if (pathStr.indexOf("NaN") < 0) {
-        attr(svgEl, "d", pathStr);
-      }
     }
+    attr(svgEl, "d", el.__svgPathStr);
     bindStyle(svgEl, style2, el);
     setTransform(svgEl, el.transform);
   }
@@ -59269,9 +59635,9 @@ function adjustTextY2(y, lineHeight, textBaseline) {
 const svgText = {
   brush(el) {
     const style2 = el.style;
-    let text9 = style2.text;
-    text9 != null && (text9 += "");
-    if (!text9) {
+    let text11 = style2.text;
+    text11 != null && (text11 += "");
+    if (!text11) {
       return;
     }
     let textSvgEl = el.__svgEl;
@@ -59282,7 +59648,7 @@ const svgText = {
     const font = style2.font || DEFAULT_FONT;
     const textSvgElStyle = textSvgEl.style;
     textSvgElStyle.font = font;
-    textSvgEl.textContent = text9;
+    textSvgEl.textContent = text11;
     bindStyle(textSvgEl, style2, el);
     setTransform(textSvgEl, el.transform);
     const x = style2.x || 0;
@@ -59887,9 +60253,6 @@ function getSvgElement(displayable) {
 class SVGPainter {
   constructor(root, storage2, opts, zrId) {
     this.type = "svg";
-    this.addHover = createMethodNotSupport("addHover");
-    this.removeHover = createMethodNotSupport("removeHover");
-    this.clearHover = createMethodNotSupport("clearHover");
     this.refreshHover = createMethodNotSupport("refreshHover");
     this.pathToImage = createMethodNotSupport("pathToImage");
     this.configLayer = createMethodNotSupport("configLayer");
@@ -59971,7 +60334,7 @@ class SVGPainter {
       const svgProxy = getSvgProxy(displayable);
       const svgElement = getSvgElement(displayable);
       if (!displayable.invisible) {
-        if (displayable.__dirty) {
+        if (displayable.__dirty || !svgElement) {
           svgProxy && svgProxy.brush(displayable);
           this._clipPathManager.update(displayable);
           if (displayable.style) {
@@ -59981,7 +60344,9 @@ class SVGPainter {
           }
           displayable.__dirty = 0;
         }
-        newVisibleList.push(displayable);
+        if (getSvgElement(displayable)) {
+          newVisibleList.push(displayable);
+        }
       }
     }
     const diff2 = arrayDiff_default(visibleList, newVisibleList);

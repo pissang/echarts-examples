@@ -33,4 +33,3 @@ ECHARTS_NEXT_DIR="../echarts-next"
 # ls -alF ./public/vendors/echarts/
 
 cp ${ECHARTS_NEXT_DIR}/dist/echarts.js ./public/vendors/echarts/echarts-next.js
-cp ${ECHARTS_NEXT_DIR}/dist/echarts.js ./public-gh/vendors/echarts/echarts-next.js
