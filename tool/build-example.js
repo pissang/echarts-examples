@@ -68,7 +68,7 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
     // TODO puppeteer will have Navigation Timeout Exceeded: 30000ms exceeded error in these examples.
     var screenshotBlackList = [];
 
-    var rootDir = __dirname + '/../';
+    var rootDir = path.join(__dirname, '../');
 
     glob(`${rootDir}public/${sourceFolder}/*.js`, async function (err, files) {
 
@@ -141,6 +141,7 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
                     try {
                         await page.goto(url, {'waitUntil' : 'networkidle0'});
                         await waitTime(200);
+                        console.log(`${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`);
                         await page.screenshot({
                             path: `${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`,
                             type: 'jpeg',

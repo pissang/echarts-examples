@@ -3,18 +3,12 @@ extends basic
 block content
 
     nav(class='navbar navbar-default navbar-fixed-top')
-        if lang == 'zh'
-            include ../../../echarts-www/_jade/components/nav-mixin
-            +nav(mainSiteHost, mainSiteCDNPayRoot, mainSiteCDNPayVersion)
-        else
-            include ../../../echarts-www/_jade/en/nav-mixin
-            +nav(mainSiteHost, mainSiteCDNPayRoot)
-
-    script(type='text/javascript').
-        var selector = window.EC_DEMO_LANG === 'en' ? 'nav-start' : 'nav-examples';
-        var menu = document.getElementById(selector);
-        if (menu) {
-            menu.className = 'active';
-        }
+        div(class="navbar-header")
+            a(href="https://echarts.apache.org/en/index.html" class="navbar-brand")
+                img(src="https://echarts.apache.org/en/images/logo.png" alt="echarts logo" class="navbar-logo")
+        ul(class="nav navbar-nav navbar-right")
+            li(id="nav-apache")
+                a(href="https://www.apache.org/" target="_blank" style="padding:5px 20px")
+                    img(src="https://echarts.apache.org/en/images/apache-incubator-white.png" height="39px")
 
     block inner_content
