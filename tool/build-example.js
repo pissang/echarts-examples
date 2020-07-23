@@ -34,7 +34,7 @@ if (matchPattern) {
 }
 themeList = themeList.split(',');
 
-var tpl = fs.readFileSync('../public/javascripts/chart-list.tpl.js', 'utf-8');
+var tpl = fs.readFileSync(path.join(__dirname, '../public/javascripts/chart-list.tpl.js'), 'utf-8');
 
 etpl.config({
     commandOpen: '/**',
@@ -47,9 +47,10 @@ function waitTime(time) {
 
 var BUILD_THUMBS = sourceFolder === 'data' && !args.no_thumb;
 // var BASE_PATH = 'http://localhost:8000/echarts/echarts-examples';
-var BASE_PATH = 'http://localhost/echarts-examples-next/';
-var SCREENSHOT_PAGE_URL = `${BASE_PATH}/public/screenshot.html`;
-
+// var BASE_PATH = 'http://localhost/echarts-examples-next/';
+// var SCREENSHOT_PAGE_URL = `${BASE_PATH}/public/screenshot.html`;
+var BASE_PATH = 'file://' + __dirname;
+var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
 
 (async () => {
     // https://github.com/GoogleChrome/puppeteer/issues/1260
