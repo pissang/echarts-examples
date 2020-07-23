@@ -27,8 +27,7 @@ option = {
             type: 'bar',
             stack: '总量',
             label: {
-                show: true,
-                position: 'insideRight'
+                show: true
             },
             emphasis: {
                 focus: 'series'
@@ -40,8 +39,7 @@ option = {
             type: 'bar',
             stack: '总量',
             label: {
-                show: true,
-                position: 'insideRight'
+                show: true
             },
             emphasis: {
                 focus: 'series'
@@ -53,8 +51,7 @@ option = {
             type: 'bar',
             stack: '总量',
             label: {
-                show: true,
-                position: 'insideRight'
+                show: true
             },
             emphasis: {
                 focus: 'series'
@@ -66,8 +63,7 @@ option = {
             type: 'bar',
             stack: '总量',
             label: {
-                show: true,
-                position: 'insideRight'
+                show: true
             },
             emphasis: {
                 focus: 'series'
@@ -79,8 +75,7 @@ option = {
             type: 'bar',
             stack: '总量',
             label: {
-                show: true,
-                position: 'insideRight'
+                show: true
             },
             emphasis: {
                 focus: 'series'
