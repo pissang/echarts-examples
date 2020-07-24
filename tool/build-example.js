@@ -60,7 +60,8 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
             args: [
               '--headless',
               '--hide-scrollbars',
-              '--mute-audio'
+              '--mute-audio',
+		      "--allow-file-access-from-files"
             ]
         });
     }
@@ -113,6 +114,19 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
                 for (var theme of themeList) {
                     var thumbFolder = (theme !== 'default') ? ('thumb-' + theme) : 'thumb';
                     var page = await browser.newPage();
+                    page.exposeFunction('readLocalFile', async (filePath) => {
+                        filePath = filePath.replace(/^file:\/*?/, '');
+                        return new Promise((resolve, reject) => {
+                            fs.readFile(filePath, 'utf8', (err, text) => {
+                                if (err) {
+                                    reject(err);
+                                }
+                                else {
+                                    resolve(text);
+                                }
+                            });
+                        });
+                    });
                     await page.setViewport({
                         width: 600,
                         height: 450
@@ -120,10 +134,11 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
                         // height: 525
                     });
                     var url = `${SCREENSHOT_PAGE_URL}?c=${basename}&s=${sourceFolder}&t=${theme}`;
+                    const resourceRootPath = path.join(BASE_PATH, '../public/');
                     // console.log(url);
-                    await page.evaluateOnNewDocument(function (BASE_PATH) {
-                        window.ROOT_PATH = BASE_PATH + '/public/';
-                    }, BASE_PATH);
+                    await page.evaluateOnNewDocument(function (resourceRootPath) {
+                        window.ROOT_PATH = resourceRootPath;
+                    }, resourceRootPath);
                     // page.on('console', msg => {
                     //     var args = msg.args();
                     //     var msg = ['[pageconsole]'].concat(args.map(v => v + ''));
@@ -133,9 +148,7 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
                         console.error('[pageerror in]', url);
                         console.log(err.toString());
                     });
-                    // page.on('console', msg => {
-                    //     console.log(msg.text);
-                    // });
+                    // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
                     console.log(`Generating ${theme} thumbs.....${basename}`);
                     // https://stackoverflow.com/questions/46160929/puppeteer-wait-for-all-images-to-load-then-take-screenshot
                     try {
@@ -145,7 +158,7 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
                         await page.screenshot({
                             path: `${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`,
                             type: 'jpeg',
-                            quality: 90
+                            quality: 80
                         });
                     }
                     catch (e) {

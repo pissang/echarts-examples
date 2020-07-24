@@ -30,17 +30,17 @@ var CHART_TYPES = {
     drag: ['拖拽', 'Drag'],
     rich: ['富文本', 'Rich Text'],
 
-    globe: ['3D 地球', '3D Globe'],
-    bar3D: ['3D 柱状图', '3D Bar'],
-    scatter3D: ['3D 散点图', '3D Scatter'],
-    surface: ['3D 曲面', '3D Surface'],
-    map3D: ['3D 地图', '3D Map'],
-    lines3D: ['3D 路径图', '3D Lines'],
-    line3D: ['3D 折线图', '3D Line'],
-    scatterGL: ['GL 散点图', 'Scatter GL'],
-    linesGL: ['GL 路径图', 'Lines GL'],
-    flowGL: ['GL 矢量场图', 'Flow GL'],
-    graphGL: ['GL 关系图', 'Graph GL']
+    // globe: ['3D 地球', '3D Globe'],
+    // bar3D: ['3D 柱状图', '3D Bar'],
+    // scatter3D: ['3D 散点图', '3D Scatter'],
+    // surface: ['3D 曲面', '3D Surface'],
+    // map3D: ['3D 地图', '3D Map'],
+    // lines3D: ['3D 路径图', '3D Lines'],
+    // line3D: ['3D 折线图', '3D Line'],
+    // scatterGL: ['GL 散点图', 'Scatter GL'],
+    // linesGL: ['GL 路径图', 'Lines GL'],
+    // flowGL: ['GL 矢量场图', 'Flow GL'],
+    // graphGL: ['GL 关系图', 'Graph GL']
 };
 
 var COLORS = {
@@ -198,7 +198,7 @@ $(document).ready(function() {
     }
 
     addExamples(EXAMPLES, false);
-    addExamples(EXAMPLES_GL, true);
+    // addExamples(EXAMPLES_GL, true);
 
     // chart nav highlighting as scrolling
     var waypoints = $('.chart-type-head').waypoint(function (direction) {

@@ -11,7 +11,7 @@
     <script type="text/javascript" src="./vendors/echarts/map/js/china.js?_v_=1510583857922"></script>
     <script type="text/javascript" src="./vendors/echarts/map/js/world.js?_v_=1510583857922"></script>
     <script type="text/javascript" src="./vendors/echarts/extension/dataTool.js?_v_=1510583857922"></script>
-    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&amp;ak=KOmVjPVUAey1G2E8zNhPiuQ6QiEmAwZu"></script>
+    <!-- <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&amp;ak=KOmVjPVUAey1G2E8zNhPiuQ6QiEmAwZu"></script> -->
     <script type="text/javascript" src="./vendors/echarts/extension/bmap.js?_v_=1510583857922"></script>
     <script type="text/javascript" src="../tool/seedrandom.js"></script>
     <style>
@@ -45,6 +45,23 @@
     Math.random = function () {
         return myrng();
     };
+
+    $.getJSON = function (url, cb) {
+        readLocalFile(url).then(data => {
+            cb && cb(JSON.parse(data));
+        });
+    }
+
+    $.get = function (url, cb) {
+        readLocalFile(url).then(data => {
+            try {
+                data = JSON.parse(data);
+            }
+            catch(e) {}
+
+            cb(data);
+        });
+    }
 
     if (params.c) {
         if (!window.ROOT_PATH) {
