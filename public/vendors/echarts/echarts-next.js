@@ -12234,14 +12234,14 @@ function makeStyleMapper_default(properties, ignoreParent) {
     }
   }
   ignoreParent = ignoreParent || false;
-  return function(model64, excludes, includes) {
+  return function(model65, excludes, includes) {
     const style2 = {};
     for (let i = 0; i < properties.length; i++) {
       const propName = properties[i][1];
       if (excludes && indexOf(excludes, propName) >= 0 || includes && indexOf(includes, propName) < 0) {
         continue;
       }
-      const val = model64.getShallow(propName, ignoreParent);
+      const val = model65.getShallow(propName, ignoreParent);
       if (val != null) {
         style2[properties[i][0]] = val;
       }
@@ -12941,8 +12941,8 @@ function shouldSilent(el, e) {
   return el.__highDownSilentOnTouch && e.zrByTouch;
 }
 function allLeaveBlur(ecIns) {
-  const model64 = ecIns.getModel();
-  model64.eachComponent(function(componentType, componentModel) {
+  const model65 = ecIns.getModel();
+  model65.eachComponent(function(componentType, componentModel) {
     const view = componentType === "series" ? ecIns.getViewOfSeriesModel(componentModel) : ecIns.getViewOfComponentModel(componentModel);
     view.group.traverse(function(child) {
       singleLeaveBlur(child);
@@ -13097,9 +13097,9 @@ function setStatesStylesFromModel(el, itemModel, styleType, getterType) {
   styleType = styleType || "itemStyle";
   for (let i = 0; i < OTHER_STATES.length; i++) {
     const stateName = OTHER_STATES[i];
-    const model64 = itemModel.getModel([stateName, styleType]);
+    const model65 = itemModel.getModel([stateName, styleType]);
     const state = el.ensureState(stateName);
-    state.style = model64[getterType || styleGetterMap[styleType]]();
+    state.style = model65[getterType || styleGetterMap[styleType]]();
   }
 }
 function setAsHighDownDispatcher(el, asDispatcher) {
@@ -16707,15 +16707,15 @@ class ComponentView2 {
   }
   init(ecModel, api) {
   }
-  render(model64, ecModel, api, payload) {
+  render(model65, ecModel, api, payload) {
   }
   dispose(ecModel, api) {
   }
-  updateView(model64, ecModel, api, payload) {
+  updateView(model65, ecModel, api, payload) {
   }
-  updateLayout(model64, ecModel, api, payload) {
+  updateLayout(model65, ecModel, api, payload) {
   }
-  updateVisual(model64, ecModel, api, payload) {
+  updateVisual(model65, ecModel, api, payload) {
   }
   blurSeries(seriesModels, ecModel) {
   }
@@ -17427,14 +17427,14 @@ class Scheduler5 {
       handler.overallReset && this._createOverallStageTask(handler, record, ecModel, api);
     }, this);
   }
-  prepareView(view, model64, ecModel, api) {
+  prepareView(view, model65, ecModel, api) {
     const renderTask = view.renderTask;
     const context = renderTask.context;
-    context.model = model64;
+    context.model = model65;
     context.ecModel = ecModel;
     context.api = api;
     renderTask.__block = !view.incrementalPrepareRender;
-    this._pipe(model64, renderTask);
+    this._pipe(model65, renderTask);
   }
   performDataProcessorTasks(ecModel, payload) {
     this._performStageTasks(this._dataProcessorHandlers, ecModel, payload, {
@@ -17961,14 +17961,14 @@ class ECEventProcessor2 {
     }
     const targetEl = eventInfo.targetEl;
     const packedEvent = eventInfo.packedEvent;
-    const model64 = eventInfo.model;
+    const model65 = eventInfo.model;
     const view = eventInfo.view;
-    if (!model64 || !view) {
+    if (!model65 || !view) {
       return true;
     }
     const cptQuery = query.cptQuery;
     const dataQuery = query.dataQuery;
-    return check(cptQuery, model64, "mainType") && check(cptQuery, model64, "subType") && check(cptQuery, model64, "index", "componentIndex") && check(cptQuery, model64, "name") && check(cptQuery, model64, "id") && check(dataQuery, packedEvent, "name") && check(dataQuery, packedEvent, "dataIndex") && check(dataQuery, packedEvent, "dataType") && (!view.filterForExposedEvent || view.filterForExposedEvent(eventType, query.otherQuery, targetEl, packedEvent));
+    return check(cptQuery, model65, "mainType") && check(cptQuery, model65, "subType") && check(cptQuery, model65, "index", "componentIndex") && check(cptQuery, model65, "name") && check(cptQuery, model65, "id") && check(dataQuery, packedEvent, "name") && check(dataQuery, packedEvent, "dataIndex") && check(dataQuery, packedEvent, "dataType") && (!view.filterForExposedEvent || view.filterForExposedEvent(eventType, query.otherQuery, targetEl, packedEvent));
     function check(query2, host, prop, propOnHost) {
       return query2[prop] == null || host[propOnHost || prop] === query2[prop];
     }
@@ -20838,14 +20838,14 @@ class ECharts extends Eventful2 {
     let result;
     const findResult = parseFinder(ecModel, finder);
     each(findResult, function(models, key) {
-      key.indexOf("Models") >= 0 && each(models, function(model64) {
-        const coordSys = model64.coordinateSystem;
+      key.indexOf("Models") >= 0 && each(models, function(model65) {
+        const coordSys = model65.coordinateSystem;
         if (coordSys && coordSys.containPoint) {
           result = result || !!coordSys.containPoint(value);
         } else if (key === "seriesModels") {
-          const view = this._chartsMap[model64.__viewId];
+          const view = this._chartsMap[model65.__viewId];
           if (view && view.containPoint) {
-            result = result || view.containPoint(value, model64);
+            result = result || view.containPoint(value, model65);
           } else {
             if (__DEV__) {
               console.warn(key + ": " + (view ? "The found component do not support containPoint." : "No view mapping to the found component."));
@@ -20904,10 +20904,10 @@ class ECharts extends Eventful2 {
             componentType = "series";
             componentIndex = params.seriesIndex;
           }
-          const model64 = componentType && componentIndex != null && ecModel.getComponent(componentType, componentIndex);
-          const view = model64 && this[model64.mainType === "series" ? "_chartsMap" : "_componentsMap"][model64.__viewId];
+          const model65 = componentType && componentIndex != null && ecModel.getComponent(componentType, componentIndex);
+          const view = model65 && this[model65.mainType === "series" ? "_chartsMap" : "_componentsMap"][model65.__viewId];
           if (__DEV__) {
-            if (!isGlobalOut && !(model64 && view)) {
+            if (!isGlobalOut && !(model65 && view)) {
               console.warn("model or view can not be found by params");
             }
           }
@@ -20916,7 +20916,7 @@ class ECharts extends Eventful2 {
           this._$eventProcessor.eventInfo = {
             targetEl: el,
             packedEvent: params,
-            model: model64,
+            model: model65,
             view
           };
           this.trigger(eveName, params);
@@ -21101,16 +21101,16 @@ ECharts.internalField = function() {
     for (let i = 0; i < viewList.length; i++) {
       viewList[i].__alive = false;
     }
-    isComponent ? ecModel.eachComponent(function(componentType, model64) {
-      componentType !== "series" && doPrepare(model64);
+    isComponent ? ecModel.eachComponent(function(componentType, model65) {
+      componentType !== "series" && doPrepare(model65);
     }) : ecModel.eachSeries(doPrepare);
-    function doPrepare(model64) {
-      const requireNewView = model64.__requireNewView;
-      model64.__requireNewView = false;
-      const viewId = "_ec_" + model64.id + "_" + model64.type;
+    function doPrepare(model65) {
+      const requireNewView = model65.__requireNewView;
+      model65.__requireNewView = false;
+      const viewId = "_ec_" + model65.id + "_" + model65.type;
       let view = !requireNewView && viewMap[viewId];
       if (!view) {
-        const classType = parseClassType(model64.type);
+        const classType = parseClassType(model65.type);
         const Clazz = isComponent ? Component_default2.getClass(classType.main, classType.sub) : Chart_default.getClass(classType.sub);
         if (__DEV__) {
           assert2(Clazz, classType.sub + " does not exist.");
@@ -21121,14 +21121,14 @@ ECharts.internalField = function() {
         viewList.push(view);
         zr.add(view.group);
       }
-      model64.__viewId = view.__id = viewId;
+      model65.__viewId = view.__id = viewId;
       view.__alive = true;
-      view.__model = model64;
+      view.__model = model65;
       view.group.__ecComponentInfo = {
-        mainType: model64.mainType,
-        index: model64.componentIndex
+        mainType: model65.mainType,
+        index: model65.componentIndex
       };
-      !isComponent && scheduler.prepareView(view, model64, ecModel, api);
+      !isComponent && scheduler.prepareView(view, model65, ecModel, api);
     }
     for (let i = 0; i < viewList.length; ) {
       const view = viewList[i];
@@ -21167,20 +21167,20 @@ ECharts.internalField = function() {
     if (excludeSeriesId != null) {
       excludeSeriesIdMap = createHashMap(normalizeToArray(excludeSeriesId));
     }
-    ecModel && ecModel.eachComponent(condition, function(model64) {
-      if (!excludeSeriesIdMap || excludeSeriesIdMap.get(model64.id) == null) {
+    ecModel && ecModel.eachComponent(condition, function(model65) {
+      if (!excludeSeriesIdMap || excludeSeriesIdMap.get(model65.id) == null) {
         if (isHighDownPayload(payload) && !payload.notBlur) {
-          if (model64 instanceof Series_default) {
-            toggleSeriesBlurStateFromPayload(model64, payload, ecIns);
+          if (model65 instanceof Series_default) {
+            toggleSeriesBlurStateFromPayload(model65, payload, ecIns);
           }
         } else if (isSelectChangePayload(payload)) {
-          if (model64 instanceof Series_default) {
-            toggleSelectionFromPayload(model64, payload, ecIns);
-            updateSeriesElementSelection(model64);
+          if (model65 instanceof Series_default) {
+            toggleSelectionFromPayload(model65, payload, ecIns);
+            updateSeriesElementSelection(model65);
             markStatusToUpdate(ecIns);
           }
         }
-        callView(ecIns[mainType === "series" ? "_chartsMap" : "_componentsMap"][model64.__viewId]);
+        callView(ecIns[mainType === "series" ? "_chartsMap" : "_componentsMap"][model65.__viewId]);
       }
     }, ecIns);
     function callView(view) {
@@ -21621,12 +21621,12 @@ ECharts.internalField = function() {
     });
   }
   ;
-  function updateZ3(model64, view) {
-    if (model64.preventAutoZ) {
+  function updateZ3(model65, view) {
+    if (model65.preventAutoZ) {
       return;
     }
-    const z = model64.get("z");
-    const zlevel = model64.get("zlevel");
+    const z = model65.get("z");
+    const zlevel = model65.get("zlevel");
     view.group.traverse(function(el) {
       if (!el.isGroup) {
         z != null && (el.z = z);
@@ -21647,7 +21647,7 @@ ECharts.internalField = function() {
     });
   }
   ;
-  function clearStates2(model64, view) {
+  function clearStates2(model65, view) {
     view.group.traverse(function(el) {
       if (isElementRemoved(el)) {
         return;
@@ -21671,9 +21671,9 @@ ECharts.internalField = function() {
       }
     });
   }
-  function updateStates(model64, view) {
-    const stateAnimationModel = model64.getModel("stateAnimation");
-    const enableAnimation = model64.isAnimationEnabled();
+  function updateStates(model65, view) {
+    const stateAnimationModel = model65.getModel("stateAnimation");
+    const enableAnimation = model65.isAnimationEnabled();
     const duration = stateAnimationModel.get("duration");
     const stateTransition = duration > 0 ? {
       duration,
@@ -21725,6 +21725,30 @@ ECharts.internalField = function() {
           }
           el = el.parent;
         }
+      }
+      enterEmphasis(el, highlightDigit) {
+        enterEmphasis(el, highlightDigit);
+        markStatusToUpdate(ecIns);
+      }
+      leaveEmphasis(el, highlightDigit) {
+        leaveEmphasis(el, highlightDigit);
+        markStatusToUpdate(ecIns);
+      }
+      enterBlur(el) {
+        enterBlur(el);
+        markStatusToUpdate(ecIns);
+      }
+      leaveBlur(el) {
+        leaveBlur(el);
+        markStatusToUpdate(ecIns);
+      }
+      enterSelect(el) {
+        enterSelect(el);
+        markStatusToUpdate(ecIns);
+      }
+      leaveSelect(el) {
+        leaveSelect(el);
+        markStatusToUpdate(ecIns);
       }
     }(ecIns);
   };
@@ -24674,18 +24698,18 @@ const Log_default = LogScale;
 
 // src/coord/scaleRawExtentInfo.ts
 class ScaleRawExtentInfo2 {
-  constructor(scale4, model64, originalExtent) {
-    this._prepareParams(scale4, model64, originalExtent);
+  constructor(scale4, model65, originalExtent) {
+    this._prepareParams(scale4, model65, originalExtent);
   }
-  _prepareParams(scale4, model64, dataExtent) {
+  _prepareParams(scale4, model65, dataExtent) {
     if (dataExtent[1] < dataExtent[0]) {
       dataExtent = [NaN, NaN];
     }
     this._dataMin = dataExtent[0];
     this._dataMax = dataExtent[1];
     const isOrdinal = this._isOrdinal = scale4.type === "ordinal";
-    this._needCrossZero = model64.getNeedCrossZero();
-    const modelMinRaw = this._modelMinRaw = model64.get("min", true);
+    this._needCrossZero = model65.getNeedCrossZero();
+    const modelMinRaw = this._modelMinRaw = model65.get("min", true);
     if (isFunction(modelMinRaw)) {
       this._modelMinNum = parseAxisModelMinMax(scale4, modelMinRaw({
         min: dataExtent[0],
@@ -24694,7 +24718,7 @@ class ScaleRawExtentInfo2 {
     } else if (modelMinRaw !== "dataMin") {
       this._modelMinNum = parseAxisModelMinMax(scale4, modelMinRaw);
     }
-    const modelMaxRaw = this._modelMaxRaw = model64.get("max", true);
+    const modelMaxRaw = this._modelMaxRaw = model65.get("max", true);
     if (isFunction(modelMaxRaw)) {
       this._modelMaxNum = parseAxisModelMinMax(scale4, modelMaxRaw({
         min: dataExtent[0],
@@ -24704,9 +24728,9 @@ class ScaleRawExtentInfo2 {
       this._modelMaxNum = parseAxisModelMinMax(scale4, modelMaxRaw);
     }
     if (isOrdinal) {
-      this._axisDataLen = model64.getCategories().length;
+      this._axisDataLen = model65.getCategories().length;
     } else {
-      const boundaryGap = model64.get("boundaryGap");
+      const boundaryGap = model65.get("boundaryGap");
       const boundaryGapArr = isArray(boundaryGap) ? boundaryGap : [boundaryGap || 0, boundaryGap || 0];
       if (typeof boundaryGapArr[0] === "boolean" || typeof boundaryGapArr[1] === "boolean") {
         if (__DEV__) {
@@ -24793,12 +24817,12 @@ const DATA_MIN_MAX_ATTR = {
   min: "_dataMin",
   max: "_dataMax"
 };
-function ensureScaleRawExtentInfo(scale4, model64, originalExtent) {
+function ensureScaleRawExtentInfo(scale4, model65, originalExtent) {
   let rawExtentInfo = scale4.rawExtentInfo;
   if (rawExtentInfo) {
     return rawExtentInfo;
   }
-  rawExtentInfo = new ScaleRawExtentInfo2(scale4, model64, originalExtent);
+  rawExtentInfo = new ScaleRawExtentInfo2(scale4, model65, originalExtent);
   scale4.rawExtentInfo = rawExtentInfo;
   return rawExtentInfo;
 }
@@ -24807,22 +24831,22 @@ function parseAxisModelMinMax(scale4, minMax) {
 }
 
 // src/coord/axisHelper.ts
-function getScaleExtent(scale4, model64) {
+function getScaleExtent(scale4, model65) {
   const scaleType = scale4.type;
-  const rawExtentResult = ensureScaleRawExtentInfo(scale4, model64, scale4.getExtent()).calculate();
+  const rawExtentResult = ensureScaleRawExtentInfo(scale4, model65, scale4.getExtent()).calculate();
   scale4.setBlank(rawExtentResult.isBlank);
   let min4 = rawExtentResult.min;
   let max4 = rawExtentResult.max;
-  const ecModel = model64.ecModel;
+  const ecModel = model65.ecModel;
   if (ecModel && scaleType === "time") {
     const barSeriesModels = prepareLayoutBarSeries("bar", ecModel);
     let isBaseAxisAndHasBarSeries = false;
     each(barSeriesModels, function(seriesModel) {
-      isBaseAxisAndHasBarSeries = isBaseAxisAndHasBarSeries || seriesModel.getBaseAxis() === model64.axis;
+      isBaseAxisAndHasBarSeries = isBaseAxisAndHasBarSeries || seriesModel.getBaseAxis() === model65.axis;
     });
     if (isBaseAxisAndHasBarSeries) {
       const barWidthAndOffset = makeColumnLayout(barSeriesModels);
-      const adjustedScale = adjustScaleForOverflow(min4, max4, model64, barWidthAndOffset);
+      const adjustedScale = adjustScaleForOverflow(min4, max4, model65, barWidthAndOffset);
       min4 = adjustedScale.min;
       max4 = adjustedScale.max;
     }
@@ -24833,10 +24857,10 @@ function getScaleExtent(scale4, model64) {
     fixMax: rawExtentResult.maxFixed
   };
 }
-function adjustScaleForOverflow(min4, max4, model64, barWidthAndOffset) {
-  const axisExtent = model64.axis.getExtent();
+function adjustScaleForOverflow(min4, max4, model65, barWidthAndOffset) {
+  const axisExtent = model65.axis.getExtent();
   const axisLength = axisExtent[1] - axisExtent[0];
-  const barsOnCurrentAxis = retrieveColumnLayout(barWidthAndOffset, model64.axis);
+  const barsOnCurrentAxis = retrieveColumnLayout(barWidthAndOffset, model65.axis);
   if (barsOnCurrentAxis === void 0) {
     return {
       min: min4,
@@ -24864,12 +24888,12 @@ function adjustScaleForOverflow(min4, max4, model64, barWidthAndOffset) {
     max: max4
   };
 }
-function niceScaleExtent(scale4, model64) {
-  const extentInfo = getScaleExtent(scale4, model64);
+function niceScaleExtent(scale4, model65) {
+  const extentInfo = getScaleExtent(scale4, model65);
   const extent3 = extentInfo.extent;
-  const splitNumber = model64.get("splitNumber");
+  const splitNumber = model65.get("splitNumber");
   if (scale4 instanceof Log_default) {
-    scale4.base = model64.get("logBase");
+    scale4.base = model65.get("logBase");
   }
   const scaleType = scale4.type;
   scale4.setExtent(extent3[0], extent3[1]);
@@ -24877,26 +24901,26 @@ function niceScaleExtent(scale4, model64) {
     splitNumber,
     fixMin: extentInfo.fixMin,
     fixMax: extentInfo.fixMax,
-    minInterval: scaleType === "interval" || scaleType === "time" ? model64.get("minInterval") : null,
-    maxInterval: scaleType === "interval" || scaleType === "time" ? model64.get("maxInterval") : null
+    minInterval: scaleType === "interval" || scaleType === "time" ? model65.get("minInterval") : null,
+    maxInterval: scaleType === "interval" || scaleType === "time" ? model65.get("maxInterval") : null
   });
-  const interval = model64.get("interval");
+  const interval = model65.get("interval");
   if (interval != null) {
     scale4.setInterval && scale4.setInterval(interval);
   }
 }
-function createScaleByModel2(model64, axisType) {
-  axisType = axisType || model64.get("type");
+function createScaleByModel2(model65, axisType) {
+  axisType = axisType || model65.get("type");
   if (axisType) {
     switch (axisType) {
       case "category":
         return new Ordinal_default({
-          ordinalMeta: model64.getOrdinalMeta ? model64.getOrdinalMeta() : model64.getCategories(),
+          ordinalMeta: model65.getOrdinalMeta ? model65.getOrdinalMeta() : model65.getCategories(),
           extent: [Infinity, -Infinity]
         });
       case "time":
         return new Time_default({
-          useUTC: model64.ecModel.get("useUTC")
+          useUTC: model65.ecModel.get("useUTC")
         });
       default:
         return new (Scale_default.getClass(axisType) || Interval_default)();
@@ -24977,8 +25001,8 @@ function rotateTextRect(textRect, rotate2) {
   const rotatedRect = new BoundingRect_default(textRect.x, textRect.y, afterWidth, afterHeight);
   return rotatedRect;
 }
-function getOptionCategoryInterval(model64) {
-  const interval = model64.get("interval");
+function getOptionCategoryInterval(model65) {
+  const interval = model65.get("interval");
   return interval == null ? "auto" : interval;
 }
 function shouldShowAllLabels(axis2) {
@@ -28179,8 +28203,8 @@ function getAxisPointerModel(axisModel) {
 function isHandleTrigger(axisPointerModel) {
   return !!axisPointerModel.get(["handle", "show"]);
 }
-function makeKey(model64) {
-  return model64.type + "||" + model64.id;
+function makeKey(model65) {
+  return model65.type + "||" + model65.id;
 }
 
 // src/component/axis/AxisView.ts
@@ -29652,14 +29676,14 @@ class BarView2 extends Chart_default {
   remove() {
     this._clear(this._model);
   }
-  _clear(model64) {
+  _clear(model65) {
     const group = this.group;
     const data = this._data;
-    if (model64 && model64.isAnimationEnabled() && data && !this._isLargeDraw) {
+    if (model65 && model65.isAnimationEnabled() && data && !this._isLargeDraw) {
       this._removeBackground();
       this._backgroundEls = [];
       data.eachItemGraphicEl(function(el) {
-        removeElementWithFadeOut(el, model64, getECData(el).dataIndex);
+        removeElementWithFadeOut(el, model65, getECData(el).dataIndex);
       });
     } else {
       group.removeAll();
@@ -31294,11 +31318,11 @@ class RadarModel7 extends Component_default {
       } else if (typeof nameFormatter === "function") {
         innerIndicatorOpt.name = nameFormatter(innerIndicatorOpt.name, innerIndicatorOpt);
       }
-      const model64 = new Model_default(innerIndicatorOpt, null, this.ecModel);
-      mixin(model64, AxisModelCommonMixin.prototype);
-      model64.mainType = "radar";
-      model64.componentIndex = this.componentIndex;
-      return model64;
+      const model65 = new Model_default(innerIndicatorOpt, null, this.ecModel);
+      mixin(model65, AxisModelCommonMixin.prototype);
+      model65.mainType = "radar";
+      model65.componentIndex = this.componentIndex;
+      return model65;
     }, this);
     this._indicatorModels = indicatorModels;
   }
@@ -31665,6 +31689,7 @@ class RadarView2 extends Chart_default {
       setStatesStylesFromModel(polygon, itemModel, "areaStyle");
       const areaStyleModel = itemModel.getModel("areaStyle");
       const polygonIgnore = areaStyleModel.isEmpty() && areaStyleModel.parentModel.isEmpty();
+      polygon.ignore = polygonIgnore;
       each(["emphasis", "select", "blur"], function(stateName) {
         const stateModel = itemModel.getModel([stateName, "areaStyle"]);
         const stateIgnore = stateModel.isEmpty() && stateModel.parentModel.isEmpty();
@@ -32380,15 +32405,15 @@ const IRRELEVANT_EXCLUDES = {
   brush: 1
 };
 function onIrrelevantElement(e, api, targetCoordSysModel) {
-  const model64 = api.getComponentByElement(e.topTarget);
-  const coordSys = model64 && model64.coordinateSystem;
-  return model64 && model64 !== targetCoordSysModel && !IRRELEVANT_EXCLUDES.hasOwnProperty(model64.mainType) && (coordSys && coordSys.model !== targetCoordSysModel);
+  const model65 = api.getComponentByElement(e.topTarget);
+  const coordSys = model65 && model65.coordinateSystem;
+  return model65 && model65 !== targetCoordSysModel && !IRRELEVANT_EXCLUDES.hasOwnProperty(model65.mainType) && (coordSys && coordSys.model !== targetCoordSysModel);
 }
 
 // src/component/helper/MapDraw.ts
-function getFixedItemStyle(model64) {
-  const itemStyle5 = model64.getItemStyle();
-  const areaColor = model64.get("areaColor");
+function getFixedItemStyle(model65) {
+  const itemStyle5 = model65.getItemStyle();
+  const areaColor = model65.get("areaColor");
   if (areaColor != null) {
     itemStyle5.fill = areaColor;
   }
@@ -33098,8 +33123,8 @@ function resizeGeo(geoModel, api) {
   this.setCenter(geoModel.get("center"));
   this.setZoom(geoModel.get("zoom"));
 }
-function setGeoCoords(geo2, model64) {
-  each(model64.get("geoCoord"), function(geoCoord3, name) {
+function setGeoCoords(geo2, model65) {
+  each(model65.get("geoCoord"), function(geoCoord3, name) {
     geo2.addGeoCoord(name, geoCoord3);
   });
 }
@@ -33615,12 +33640,12 @@ class TreeSeriesModel extends Series_default {
     const leavesModel = new Model_default(leaves, this, this.ecModel);
     const tree2 = Tree_default.createTree(root, this, {}, beforeLink);
     function beforeLink(nodeData) {
-      nodeData.wrapMethod("getItemModel", function(model64, idx) {
+      nodeData.wrapMethod("getItemModel", function(model65, idx) {
         const node = tree2.getNodeByDataIndex(idx);
         if (!node.children.length || !node.isExpand) {
-          model64.parentModel = leavesModel;
+          model65.parentModel = leavesModel;
         }
-        return model64;
+        return model65;
       });
     }
     let treeDepth = 0;
@@ -34522,8 +34547,8 @@ function treeVisual_default(ecModel) {
     const data = seriesModel.getData();
     const tree2 = data.tree;
     tree2.eachNode(function(node) {
-      const model64 = node.getModel();
-      const style2 = model64.getModel("itemStyle").getItemStyle();
+      const model65 = node.getModel();
+      const style2 = model65.getModel("itemStyle").getItemStyle();
       const existsStyle = data.ensureUniqueItemVisual(node.dataIndex, "style");
       extend(existsStyle, style2);
     });
@@ -34602,11 +34627,11 @@ class TreemapSeriesModel2 extends Series_default {
     }, this);
     const tree2 = Tree_default.createTree(root, this, null, beforeLink);
     function beforeLink(nodeData) {
-      nodeData.wrapMethod("getItemModel", function(model64, idx) {
+      nodeData.wrapMethod("getItemModel", function(model65, idx) {
         const node = tree2.getNodeByDataIndex(idx);
         const levelModel = levelModels[node.depth];
-        levelModel && (model64.parentModel = levelModel);
-        return model64;
+        levelModel && (model65.parentModel = levelModel);
+        return model65;
       });
     }
     return tree2.data;
@@ -34763,9 +34788,9 @@ function setDefault(levels, ecModel) {
   levels = levels || [];
   let hasColorDefine;
   each(levels, function(levelDefine) {
-    const model64 = new Model_default(levelDefine);
-    const modelColor = model64.get("color");
-    if (model64.get(["itemStyle", "color"]) || modelColor && modelColor !== "none") {
+    const model65 = new Model_default(levelDefine);
+    const modelColor = model65.get("color");
+    if (model65.get(["itemStyle", "color"]) || modelColor && modelColor !== "none") {
       hasColorDefine = true;
     }
   });
@@ -34787,26 +34812,26 @@ class Breadcrumb {
     containerGroup.add(this.group);
   }
   render(seriesModel, api, targetNode, onSelect) {
-    const model64 = seriesModel.getModel("breadcrumb");
+    const model65 = seriesModel.getModel("breadcrumb");
     const thisGroup = this.group;
     thisGroup.removeAll();
-    if (!model64.get("show") || !targetNode) {
+    if (!model65.get("show") || !targetNode) {
       return;
     }
-    const normalStyleModel = model64.getModel("itemStyle");
+    const normalStyleModel = model65.getModel("itemStyle");
     const textStyleModel = normalStyleModel.getModel("textStyle");
     const layoutParam = {
       pos: {
-        left: model64.get("left"),
-        right: model64.get("right"),
-        top: model64.get("top"),
-        bottom: model64.get("bottom")
+        left: model65.get("left"),
+        right: model65.get("right"),
+        top: model65.get("top"),
+        bottom: model65.get("bottom")
       },
       box: {
         width: api.getWidth(),
         height: api.getHeight()
       },
-      emptyItemWidth: model64.get("emptyItemWidth"),
+      emptyItemWidth: model65.get("emptyItemWidth"),
       totalWidth: 0,
       renderList: []
     };
@@ -34959,8 +34984,8 @@ const Z_BASE = 10;
 const Z_BG = 1;
 const Z_CONTENT = 2;
 const getStateItemStyle = makeStyleMapper_default([["fill", "color"], ["stroke", "strokeColor"], ["lineWidth", "strokeWidth"], ["shadowBlur"], ["shadowOffsetX"], ["shadowOffsetY"], ["shadowColor"]]);
-const getItemStyleNormal = function(model64) {
-  const itemStyle5 = getStateItemStyle(model64);
+const getItemStyleNormal = function(model65) {
+  const itemStyle5 = getStateItemStyle(model65);
   itemStyle5.stroke = itemStyle5.fill = itemStyle5.lineWidth = null;
   return itemStyle5;
 };
@@ -35610,15 +35635,15 @@ registerAction({
     subType: "treemap",
     query: payload
   }, handleRootToNode);
-  function handleRootToNode(model64, index) {
+  function handleRootToNode(model65, index) {
     const types298 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types298, model64);
+    const targetInfo = retrieveTargetInfo(payload, types298, model65);
     if (targetInfo) {
-      const originViewRoot = model64.getViewRoot();
+      const originViewRoot = model65.getViewRoot();
       if (originViewRoot) {
         payload.direction = aboveViewRoot(originViewRoot, targetInfo.node) ? "rollUp" : "drillDown";
       }
-      model64.resetViewRoot(targetInfo.node);
+      model65.resetViewRoot(targetInfo.node);
     }
   }
 });
@@ -36442,8 +36467,8 @@ function prunning(node, clipRect, viewAbovePath, viewRoot, depth) {
     prunning(child, childClipRect, viewAbovePath, viewRoot, depth + 1);
   });
 }
-function getUpperLabelHeight(model64) {
-  return model64.get(PATH_UPPER_LABEL_SHOW) ? model64.get(PATH_UPPER_LABEL_HEIGHT) : 0;
+function getUpperLabelHeight(model65) {
+  return model65.get(PATH_UPPER_LABEL_SHOW) ? model65.get(PATH_UPPER_LABEL_HEIGHT) : 0;
 }
 
 // src/chart/treemap.ts
@@ -36810,26 +36835,26 @@ class GraphSeriesModel extends Series_default {
       return createGraphFromNodeEdge_default(nodes, edges, this, true, beforeLink).data;
     }
     function beforeLink(nodeData, edgeData) {
-      nodeData.wrapMethod("getItemModel", function(model64) {
+      nodeData.wrapMethod("getItemModel", function(model65) {
         const categoriesModels = self2._categoriesModels;
-        const categoryIdx = model64.getShallow("category");
+        const categoryIdx = model65.getShallow("category");
         const categoryModel = categoriesModels[categoryIdx];
         if (categoryModel) {
-          categoryModel.parentModel = model64.parentModel;
-          model64.parentModel = categoryModel;
+          categoryModel.parentModel = model65.parentModel;
+          model65.parentModel = categoryModel;
         }
-        return model64;
+        return model65;
       });
       const oldGetModel = Model_default.prototype.getModel;
       function newGetModel(path2, parentModel) {
-        const model64 = oldGetModel.call(this, path2, parentModel);
-        model64.resolveParentPath = resolveParentPath;
-        return model64;
+        const model65 = oldGetModel.call(this, path2, parentModel);
+        model65.resolveParentPath = resolveParentPath;
+        return model65;
       }
-      edgeData.wrapMethod("getItemModel", function(model64) {
-        model64.resolveParentPath = resolveParentPath;
-        model64.getModel = newGetModel;
-        return model64;
+      edgeData.wrapMethod("getItemModel", function(model65) {
+        model65.resolveParentPath = resolveParentPath;
+        model65.getModel = newGetModel;
+        return model65;
       });
       function resolveParentPath(pathArr) {
         if (pathArr && (pathArr[0] === "label" || pathArr[1] === "label")) {
@@ -37800,8 +37825,8 @@ function categoryFilter_default(ecModel) {
     const data = graph2.data;
     const categoryNames = categoriesData.mapArray(categoriesData.getName);
     data.filterSelf(function(idx) {
-      const model64 = data.getItemModel(idx);
-      let category = model64.getShallow("category");
+      const model65 = data.getItemModel(idx);
+      let category = model65.getShallow("category");
       if (category != null) {
         if (typeof category === "number") {
           category = categoryNames[category];
@@ -37843,8 +37868,8 @@ function categoryVisual_default(ecModel) {
     });
     if (categoriesData.count()) {
       data.each(function(idx) {
-        const model64 = data.getItemModel(idx);
-        let categoryIdx = model64.getShallow("category");
+        const model65 = data.getItemModel(idx);
+        let categoryIdx = model65.getShallow("category");
         if (categoryIdx != null) {
           if (typeof categoryIdx === "string") {
             categoryIdx = categoryNameIdxMap["ec-" + categoryIdx];
@@ -37916,8 +37941,8 @@ function simpleLayout2(seriesModel) {
   }
   const graph2 = seriesModel.getGraph();
   graph2.eachNode(function(node) {
-    const model64 = node.getModel();
-    node.setLayout([+model64.get("x"), +model64.get("y")]);
+    const model65 = node.getModel();
+    node.setLayout([+model65.get("x"), +model65.get("y")]);
   });
   simpleLayoutEdge(graph2);
 }
@@ -39617,8 +39642,8 @@ class ParallelModel13 extends Component_default {
     newOption && merge(thisOption, newOption, true);
     this._initDimensions();
   }
-  contains(model64, ecModel) {
-    const parallelIndex = model64.get("parallelIndex");
+  contains(model65, ecModel) {
+    const parallelIndex = model65.get("parallelIndex");
     return parallelIndex != null && ecModel.getComponent("parallel", parallelIndex) === this;
   }
   setAxisExpand(opt) {
@@ -40516,10 +40541,10 @@ const handlers = {
     if (this._mouseDownPoint || !checkTrigger(this, "mousemove")) {
       return;
     }
-    const model64 = this._model;
-    const result = model64.coordinateSystem.getSlidedAxisExpandWindow([e.offsetX, e.offsetY]);
+    const model65 = this._model;
+    const result = model65.coordinateSystem.getSlidedAxisExpandWindow([e.offsetX, e.offsetY]);
     const behavior = result.behavior;
-    behavior === "jump" && this._throttledDispatchExpand.debounceNextCall(model64.get("axisExpandDebounce"));
+    behavior === "jump" && this._throttledDispatchExpand.debounceNextCall(model65.get("axisExpandDebounce"));
     this._throttledDispatchExpand(behavior === "none" ? null : {
       axisExpandWindow: result.axisExpandWindow,
       animation: behavior === "jump" ? null : {
@@ -40529,8 +40554,8 @@ const handlers = {
   }
 };
 function checkTrigger(view, triggerOn) {
-  const model64 = view._model;
-  return model64.get("axisExpandable") && model64.get("axisExpandTriggerOn") === triggerOn;
+  const model65 = view._model;
+  return model65.get("axisExpandable") && model65.get("axisExpandTriggerOn") === triggerOn;
 }
 registerPreprocessor(parallelPreprocessor_default);
 
@@ -40798,30 +40823,30 @@ class SankeySeriesModel extends Series_default {
       return graph2.data;
     }
     function beforeLink(nodeData, edgeData) {
-      nodeData.wrapMethod("getItemModel", function(model64, idx) {
-        const seriesModel = model64.parentModel;
+      nodeData.wrapMethod("getItemModel", function(model65, idx) {
+        const seriesModel = model65.parentModel;
         const layout33 = seriesModel.getData().getItemLayout(idx);
         if (layout33) {
           const nodeDepth = layout33.depth;
           const levelModel = seriesModel.levelModels[nodeDepth];
           if (levelModel) {
-            model64.parentModel = levelModel;
+            model65.parentModel = levelModel;
           }
         }
-        return model64;
+        return model65;
       });
-      edgeData.wrapMethod("getItemModel", function(model64, idx) {
-        const seriesModel = model64.parentModel;
+      edgeData.wrapMethod("getItemModel", function(model65, idx) {
+        const seriesModel = model65.parentModel;
         const edge = seriesModel.getGraph().getEdgeByIndex(idx);
         const layout33 = edge.node1.getLayout();
         if (layout33) {
           const depth = layout33.depth;
           const levelModel = seriesModel.levelModels[depth];
           if (levelModel) {
-            model64.parentModel = levelModel;
+            model65.parentModel = levelModel;
           }
         }
-        return model64;
+        return model65;
       });
     }
   }
@@ -42274,11 +42299,11 @@ const candlestickVisual2 = {
   plan: createRenderPlanner_default(),
   performRawSeries: true,
   reset: function(seriesModel, ecModel) {
-    function getColor(sign, model64) {
-      return model64.get(sign > 0 ? positiveColorQuery : negativeColorQuery);
+    function getColor(sign, model65) {
+      return model65.get(sign > 0 ? positiveColorQuery : negativeColorQuery);
     }
-    function getBorderColor(sign, model64) {
-      return model64.get(sign > 0 ? positiveBorderColorQuery : negativeBorderColorQuery);
+    function getBorderColor(sign, model65) {
+      return model65.get(sign > 0 ? positiveBorderColorQuery : negativeBorderColorQuery);
     }
     const data = seriesModel.getData();
     data.setVisual("legendSymbol", "roundRect");
@@ -43784,6 +43809,8 @@ class HeatmapView2 extends Chart_default {
     const coordSys = seriesModel.coordinateSystem;
     let width;
     let height;
+    let xAxisExtent;
+    let yAxisExtent;
     if (isCoordinateSystemType(coordSys, "cartesian2d")) {
       const xAxis = coordSys.getAxis("x");
       const yAxis = coordSys.getAxis("y");
@@ -43797,6 +43824,8 @@ class HeatmapView2 extends Chart_default {
       }
       width = xAxis.getBandWidth();
       height = yAxis.getBandWidth();
+      xAxisExtent = xAxis.scale.getExtent();
+      yAxisExtent = yAxis.scale.getExtent();
     }
     const group = this.group;
     const data = seriesModel.getData();
@@ -43810,10 +43839,12 @@ class HeatmapView2 extends Chart_default {
     for (let idx = start2; idx < end2; idx++) {
       let rect;
       if (isCoordinateSystemType(coordSys, "cartesian2d")) {
-        if (isNaN(data.get(dataDims[2], idx))) {
+        const dataDimX = data.get(dataDims[0], idx);
+        const dataDimY = data.get(dataDims[1], idx);
+        if (isNaN(data.get(dataDims[2], idx)) || dataDimX < xAxisExtent[0] || dataDimX > xAxisExtent[1] || dataDimY < yAxisExtent[0] || dataDimY > yAxisExtent[1]) {
           continue;
         }
-        const point = coordSys.dataToPoint([data.get(dataDims[0], idx), data.get(dataDims[1], idx)]);
+        const point = coordSys.dataToPoint([dataDimX, dataDimY]);
         rect = new Rect_default({
           shape: {
             x: Math.floor(Math.round(point[0]) - width / 2),
@@ -46571,8 +46602,8 @@ class SunburstPiece extends Sector_default {
       }
       state.rotation = rotate2;
     });
-    function getLabelAttr(model64, name) {
-      const stateAttr = model64.get(name);
+    function getLabelAttr(model65, name) {
+      const stateAttr = model65.get(name);
       if (stateAttr == null) {
         return normalLabelModel.get(name);
       }
@@ -46594,14 +46625,14 @@ registerAction({
     subType: "sunburst",
     query: payload
   }, handleRootToNode);
-  function handleRootToNode(model64, index) {
-    const targetInfo = retrieveTargetInfo(payload, [ROOT_TO_NODE_ACTION], model64);
+  function handleRootToNode(model65, index) {
+    const targetInfo = retrieveTargetInfo(payload, [ROOT_TO_NODE_ACTION], model65);
     if (targetInfo) {
-      const originViewRoot = model64.getViewRoot();
+      const originViewRoot = model65.getViewRoot();
       if (originViewRoot) {
         payload.direction = aboveViewRoot(originViewRoot, targetInfo.node) ? "rollUp" : "drillDown";
       }
-      model64.resetViewRoot(targetInfo.node);
+      model65.resetViewRoot(targetInfo.node);
     }
   }
 });
@@ -46616,8 +46647,8 @@ registerAction({
     subType: "sunburst",
     query: payload
   }, handleHighlight);
-  function handleHighlight(model64) {
-    const targetInfo = retrieveTargetInfo(payload, [HIGHLIGHT_ACTION], model64);
+  function handleHighlight(model65) {
+    const targetInfo = retrieveTargetInfo(payload, [HIGHLIGHT_ACTION], model65);
     if (targetInfo) {
       payload.dataIndex = targetInfo.node.dataIndex;
     }
@@ -46913,8 +46944,8 @@ function sunburstVisual_default(ecModel) {
     const data = seriesModel.getData();
     const tree2 = data.tree;
     tree2.eachNode(function(node) {
-      const model64 = node.getModel();
-      const style2 = model64.getModel("itemStyle").getItemStyle();
+      const model65 = node.getModel();
+      const style2 = model65.getModel("itemStyle").getItemStyle();
       if (!style2.fill) {
         style2.fill = pickColor(node, seriesModel, tree2.root.height);
       }
@@ -50620,16 +50651,16 @@ function isUserFeatureName(featureName) {
 const saveAsImageLang = lang_default.toolbox.saveAsImage;
 class SaveAsImage2 extends ToolboxFeature {
   onclick(ecModel, api) {
-    const model64 = this.model;
-    const title2 = model64.get("name") || ecModel.get("title.0.text") || "echarts";
+    const model65 = this.model;
+    const title2 = model65.get("name") || ecModel.get("title.0.text") || "echarts";
     const isSvg = api.getZr().painter.getType() === "svg";
-    const type = isSvg ? "svg" : model64.get("type", true) || "png";
+    const type = isSvg ? "svg" : model65.get("type", true) || "png";
     const url = api.getConnectedDataURL({
       type,
-      backgroundColor: model64.get("backgroundColor", true) || ecModel.get("backgroundColor") || "#fff",
-      connectedBackgroundColor: model64.get("connectedBackgroundColor"),
-      excludeComponents: model64.get("excludeComponents"),
-      pixelRatio: model64.get("pixelRatio")
+      backgroundColor: model65.get("backgroundColor", true) || ecModel.get("backgroundColor") || "#fff",
+      connectedBackgroundColor: model65.get("connectedBackgroundColor"),
+      excludeComponents: model65.get("excludeComponents"),
+      pixelRatio: model65.get("pixelRatio")
     });
     if (typeof MouseEvent === "function" && !env_default.browser.ie && !env_default.browser.edge) {
       const $a = document.createElement("a");
@@ -50653,7 +50684,7 @@ class SaveAsImage2 extends ToolboxFeature {
         const blob = new Blob([u8arr]);
         window.navigator.msSaveOrOpenBlob(blob, title2 + "." + type);
       } else {
-        const lang9 = model64.get("lang");
+        const lang9 = model65.get("lang");
         const html = '<body style="margin:0;"><img src="' + url + '" style="max-width:100%;" title="' + (lang9 && lang9[0] || "") + '" /></body>';
         const tab = window.open();
         tab.document.write(html);
@@ -50681,10 +50712,10 @@ const INNER_STACK_KEYWORD = "__ec_magicType_stack__";
 const radioTypes = [["line", "bar"], ["stack"]];
 class MagicType2 extends ToolboxFeature {
   getIcons() {
-    const model64 = this.model;
-    const availableIcons = model64.get("icon");
+    const model65 = this.model;
+    const availableIcons = model65.get("icon");
     const icons = {};
-    each(model64.get("type"), function(type) {
+    each(model65.get("type"), function(type) {
       if (availableIcons[type]) {
         icons[type] = availableIcons[type];
       }
@@ -50692,8 +50723,8 @@ class MagicType2 extends ToolboxFeature {
     return icons;
   }
   onclick(ecModel, api, type) {
-    const model64 = this.model;
-    const seriesIndex = model64.get(["seriesIndex", type]);
+    const model65 = this.model;
+    const seriesIndex = model65.get(["seriesIndex", type]);
     if (!seriesOptGenreator[type]) {
       return;
     }
@@ -50703,7 +50734,7 @@ class MagicType2 extends ToolboxFeature {
     const generateNewSeriesTypes = function(seriesModel) {
       const seriesType2 = seriesModel.subType;
       const seriesId = seriesModel.id;
-      const newSeriesOpt = seriesOptGenreator[type](seriesType2, seriesId, seriesModel, model64);
+      const newSeriesOpt = seriesOptGenreator[type](seriesType2, seriesId, seriesModel, model65);
       if (newSeriesOpt) {
         defaults(newSeriesOpt, seriesModel.option);
         newOption.series.push(newSeriesOpt);
@@ -50727,11 +50758,11 @@ class MagicType2 extends ToolboxFeature {
     each(radioTypes, function(radio) {
       if (indexOf(radio, type) >= 0) {
         each(radio, function(item) {
-          model64.setIconStatus(item, "normal");
+          model65.setIconStatus(item, "normal");
         });
       }
     });
-    model64.setIconStatus(type, "emphasis");
+    model65.setIconStatus(type, "emphasis");
     ecModel.eachComponent({
       mainType: "series",
       query: seriesIndex == null ? null : {
@@ -50768,7 +50799,7 @@ MagicType2.defaultOption = {
   seriesIndex: {}
 };
 const seriesOptGenreator = {
-  line: function(seriesType2, seriesId, seriesModel, model64) {
+  line: function(seriesType2, seriesId, seriesModel, model65) {
     if (seriesType2 === "bar") {
       return merge({
         id: seriesId,
@@ -50777,10 +50808,10 @@ const seriesOptGenreator = {
         stack: seriesModel.get("stack"),
         markPoint: seriesModel.get("markPoint"),
         markLine: seriesModel.get("markLine")
-      }, model64.get(["option", "line"]) || {}, true);
+      }, model65.get(["option", "line"]) || {}, true);
     }
   },
-  bar: function(seriesType2, seriesId, seriesModel, model64) {
+  bar: function(seriesType2, seriesId, seriesModel, model65) {
     if (seriesType2 === "line") {
       return merge({
         id: seriesId,
@@ -50789,17 +50820,17 @@ const seriesOptGenreator = {
         stack: seriesModel.get("stack"),
         markPoint: seriesModel.get("markPoint"),
         markLine: seriesModel.get("markLine")
-      }, model64.get(["option", "bar"]) || {}, true);
+      }, model65.get(["option", "bar"]) || {}, true);
     }
   },
-  stack: function(seriesType2, seriesId, seriesModel, model64) {
+  stack: function(seriesType2, seriesId, seriesModel, model65) {
     const isStack = seriesModel.get("stack") === INNER_STACK_KEYWORD;
     if (seriesType2 === "line" || seriesType2 === "bar") {
-      model64.setIconStatus("stack", isStack ? "normal" : "emphasis");
+      model65.setIconStatus("stack", isStack ? "normal" : "emphasis");
       return merge({
         id: seriesId,
         stack: isStack ? "" : INNER_STACK_KEYWORD
-      }, model64.get(["option", "stack"]) || {}, true);
+      }, model65.get(["option", "stack"]) || {}, true);
     }
   }
 };
@@ -50996,23 +51027,23 @@ function parseContents(str, blockMetaList) {
 class DataView2 extends ToolboxFeature {
   onclick(ecModel, api) {
     const container = api.getDom();
-    const model64 = this.model;
+    const model65 = this.model;
     if (this._dom) {
       container.removeChild(this._dom);
     }
     const root = document.createElement("div");
     root.style.cssText = "position:absolute;left:5px;top:5px;bottom:5px;right:5px;";
-    root.style.backgroundColor = model64.get("backgroundColor") || "#fff";
+    root.style.backgroundColor = model65.get("backgroundColor") || "#fff";
     const header = document.createElement("h4");
-    const lang9 = model64.get("lang") || [];
-    header.innerHTML = lang9[0] || model64.get("title");
+    const lang9 = model65.get("lang") || [];
+    header.innerHTML = lang9[0] || model65.get("title");
     header.style.cssText = "margin: 10px 20px;";
-    header.style.color = model64.get("textColor");
+    header.style.color = model65.get("textColor");
     const viewMain = document.createElement("div");
     const textarea = document.createElement("textarea");
     viewMain.style.cssText = "display:block;width:100%;overflow:auto;";
-    const optionToContent = model64.get("optionToContent");
-    const contentToOption = model64.get("contentToOption");
+    const optionToContent = model65.get("optionToContent");
+    const contentToOption = model65.get("contentToOption");
     const result = getContentFromModel(ecModel);
     if (typeof optionToContent === "function") {
       const htmlOrDom = optionToContent(api.getOption());
@@ -51023,11 +51054,11 @@ class DataView2 extends ToolboxFeature {
       }
     } else {
       viewMain.appendChild(textarea);
-      textarea.readOnly = model64.get("readOnly");
+      textarea.readOnly = model65.get("readOnly");
       textarea.style.cssText = "width:100%;height:100%;font-family:monospace;font-size:14px;line-height:1.6rem;";
-      textarea.style.color = model64.get("textColor");
-      textarea.style.borderColor = model64.get("textareaBorderColor");
-      textarea.style.backgroundColor = model64.get("textareaColor");
+      textarea.style.color = model65.get("textColor");
+      textarea.style.borderColor = model65.get("textareaBorderColor");
+      textarea.style.backgroundColor = model65.get("textareaColor");
       textarea.value = result.value;
     }
     const blockMetaList = result.meta;
@@ -51036,8 +51067,8 @@ class DataView2 extends ToolboxFeature {
     let buttonStyle = "float:right;margin-right:20px;border:none;cursor:pointer;padding:2px 5px;font-size:12px;border-radius:3px";
     const closeButton = document.createElement("div");
     const refreshButton = document.createElement("div");
-    buttonStyle += ";background-color:" + model64.get("buttonColor");
-    buttonStyle += ";color:" + model64.get("buttonTextColor");
+    buttonStyle += ";background-color:" + model65.get("buttonColor");
+    buttonStyle += ";color:" + model65.get("buttonTextColor");
     const self2 = this;
     function close() {
       container.removeChild(root);
@@ -51068,7 +51099,7 @@ class DataView2 extends ToolboxFeature {
     refreshButton.innerHTML = lang9[2];
     refreshButton.style.cssText = buttonStyle;
     closeButton.style.cssText = buttonStyle;
-    !model64.get("readOnly") && buttonContainer.appendChild(refreshButton);
+    !model65.get("readOnly") && buttonContainer.appendChild(refreshButton);
     buttonContainer.appendChild(closeButton);
     root.appendChild(header);
     root.appendChild(viewMain);
@@ -53809,10 +53840,10 @@ class BrushFeature extends ToolboxFeature {
     this.render(featureModel, ecModel, api);
   }
   getIcons() {
-    const model64 = this.model;
-    const availableIcons = model64.get("icon", true);
+    const model65 = this.model;
+    const availableIcons = model65.get("icon", true);
     const icons = {};
-    each(model64.get("type", true), function(type) {
+    each(model65.get("type", true), function(type) {
       if (availableIcons[type]) {
         icons[type] = availableIcons[type];
       }
@@ -54361,6 +54392,7 @@ const TimelineAxis_default = TimelineAxis2;
 
 // src/component/timeline/SliderTimelineView.ts
 const PI9 = Math.PI;
+const labelDataIndexStore = makeInner();
 class SliderTimelineView2 extends TimelineView_default {
   constructor() {
     super(...arguments);
@@ -54639,6 +54671,7 @@ class SliderTimelineView2 extends TimelineView_default {
       textEl.ensureState("progress").style = createTextStyle(progressLabelModel);
       group.add(textEl);
       enableHoverEmphasis(textEl);
+      labelDataIndexStore(textEl).dataIndex = dataIndex;
       this._tickLabels.push(textEl);
     });
   }
@@ -54775,37 +54808,38 @@ class SliderTimelineView2 extends TimelineView_default {
     if (!(tickSymbols || tickLabels)) {
       return;
     }
-    const len2 = (tickSymbols || tickLabels).length;
-    for (let i = 0; i < len2; i++) {
+    for (let i = 0; i < tickSymbols.length; i++) {
       tickSymbols && tickSymbols[i] && tickSymbols[i].toggleState("progress", i < currentIndex);
-      tickLabels && tickLabels[i] && tickLabels[i].toggleState("progress", i <= currentIndex);
+    }
+    for (let i = 0; i < tickLabels.length; i++) {
+      tickLabels && tickLabels[i] && tickLabels[i].toggleState("progress", labelDataIndexStore(tickLabels[i]).dataIndex <= currentIndex);
     }
   }
 }
 SliderTimelineView2.type = "timeline.slider";
-function createScaleByModel(model64, axisType) {
-  axisType = axisType || model64.get("type");
+function createScaleByModel(model65, axisType) {
+  axisType = axisType || model65.get("type");
   if (axisType) {
     switch (axisType) {
       case "category":
         return new Ordinal_default({
-          ordinalMeta: model64.getCategories(),
+          ordinalMeta: model65.getCategories(),
           extent: [Infinity, -Infinity]
         });
       case "time":
         return new Time_default({
-          useUTC: model64.ecModel.get("useUTC")
+          useUTC: model65.ecModel.get("useUTC")
         });
       default:
         return new Interval_default();
     }
   }
 }
-function getViewRect6(model64, api) {
-  return getLayoutRect(model64.getBoxLayoutParams(), {
+function getViewRect6(model65, api) {
+  return getLayoutRect(model65.getBoxLayoutParams(), {
     width: api.getWidth(),
     height: api.getHeight()
-  }, model64.get("padding"));
+  }, model65.get("padding"));
 }
 function makeControlIcon(timelineModel, objPath, rect, opts) {
   const icon = makePath(timelineModel.get(["controlStyle", objPath]).replace(/^path:\/\//, ""), clone2(opts || {}), new BoundingRect_default(rect[0], rect[1], rect[2], rect[3]), "center");
@@ -56051,8 +56085,8 @@ function legendSelectActionHandler(methodName, payload, ecModel) {
       isSelected = legendModel.isSelected(payload.name);
     }
     const legendData = legendModel.getData();
-    each(legendData, function(model64) {
-      const name = model64.get("name");
+    each(legendData, function(model65) {
+      const name = model65.get("name");
       if (name === "\n" || name === "") {
         return;
       }
@@ -56812,6 +56846,11 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
     color: "#fff",
     borderColor: "#ACB8D1"
   },
+  moveHandleSize: 7,
+  moveHandleIcon: "path://M15 15.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM15 9.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM15 8.016q-0.797 0-1.406-0.609t-0.609-1.406 0.609-1.406 1.406-0.609 1.406 0.609 0.609 1.406-0.609 1.406-1.406 0.609zM9 3.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM9 9.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM11.016 18q0 0.797-0.609 1.406t-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609 1.406 0.609 0.609 1.406z",
+  moveHandleStyle: {
+    color: "#D2DBEE"
+  },
   showDetail: true,
   showDataShadow: "auto",
   realtime: true,
@@ -56819,10 +56858,16 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
   textStyle: {
     color: "#333"
   },
+  brushSelect: true,
+  brushStyle: {
+    color: "rgba(135,175,274,0.15)"
+  },
   emphasis: {
     handleStyle: {
-      borderColor: "#8FB0F7",
-      borderWidth: 2
+      borderColor: "#8FB0F7"
+    },
+    moveHandleStyle: {
+      color: "#8FB0F7"
     }
   }
 });
@@ -56833,10 +56878,15 @@ const Rect6 = Rect_default;
 const DEFAULT_LOCATION_EDGE_GAP = 7;
 const DEFAULT_FRAME_BORDER_WIDTH = 1;
 const DEFAULT_FILLER_SIZE = 30;
+const DEFAULT_MOVE_HANDLE_SIZE = 7;
 const HORIZONTAL = "horizontal";
 const VERTICAL = "vertical";
 const LABEL_GAP = 5;
 const SHOW_DATA_SHADOW_SERIES_TYPE = ["line", "bar", "candlestick", "scatter"];
+const REALTIME_ANIMATION_CONFIG = {
+  easing: "cubicOut",
+  duration: 100
+};
 class SliderZoomView extends DataZoomView_default {
   constructor() {
     super(...arguments);
@@ -56845,6 +56895,8 @@ class SliderZoomView extends DataZoomView_default {
   }
   init(ecModel, api) {
     this.api = api;
+    this._onBrush = bind(this._onBrush, this);
+    this._onBrushEnd = bind(this._onBrushEnd, this);
   }
   render(dataZoomModel, ecModel, api, payload) {
     super.render.apply(this, arguments);
@@ -56870,10 +56922,14 @@ class SliderZoomView extends DataZoomView_default {
   }
   _clear() {
     clear(this, "_dispatchZoomAction");
+    const zr = this.api.getZr();
+    zr.off("mousemove", this._onBrush);
+    zr.off("mouseup", this._onBrushEnd);
   }
   _buildView() {
     const thisGroup = this.group;
     thisGroup.removeAll();
+    this._brushing = false;
     this._resetLocation();
     this._resetInterval();
     const barGroup = this._displayables.sliderGroup = new Group_default();
@@ -56886,6 +56942,8 @@ class SliderZoomView extends DataZoomView_default {
   _resetLocation() {
     const dataZoomModel = this.dataZoomModel;
     const api = this.api;
+    const showMoveHandle = dataZoomModel.get("brushSelect");
+    const moveHandleSize = showMoveHandle ? DEFAULT_MOVE_HANDLE_SIZE : 0;
     const coordRect = this._findCoordRect();
     const ecSize = {
       width: api.getWidth(),
@@ -56893,7 +56951,7 @@ class SliderZoomView extends DataZoomView_default {
     };
     const positionInfo = this._orient === HORIZONTAL ? {
       right: ecSize.width - coordRect.x - coordRect.width,
-      top: ecSize.height - DEFAULT_FILLER_SIZE - DEFAULT_LOCATION_EDGE_GAP,
+      top: ecSize.height - DEFAULT_FILLER_SIZE - DEFAULT_LOCATION_EDGE_GAP - moveHandleSize,
       width: coordRect.width,
       height: DEFAULT_FILLER_SIZE
     } : {
@@ -56951,6 +57009,7 @@ class SliderZoomView extends DataZoomView_default {
     const dataZoomModel = this.dataZoomModel;
     const size = this._size;
     const barGroup = this._displayables.sliderGroup;
+    const brushSelect = dataZoomModel.get("brushSelect");
     barGroup.add(new Rect6({
       silent: true,
       shape: {
@@ -56964,7 +57023,7 @@ class SliderZoomView extends DataZoomView_default {
       },
       z2: -40
     }));
-    barGroup.add(new Rect6({
+    const clickPanel = new Rect6({
       shape: {
         x: 0,
         y: 0,
@@ -56975,8 +57034,19 @@ class SliderZoomView extends DataZoomView_default {
         fill: "transparent"
       },
       z2: 0,
-      onclick: bind(this._onClickPanelClick, this)
-    }));
+      onclick: bind(this._onClickPanel, this)
+    });
+    const zr = this.api.getZr();
+    if (brushSelect) {
+      clickPanel.on("mousedown", this._onBrushStart, this);
+      clickPanel.cursor = "crosshair";
+      zr.on("mousemove", this._onBrush);
+      zr.on("mouseup", this._onBrushEnd);
+    } else {
+      zr.off("mousemove", this._onBrush);
+      zr.off("mouseup", this._onBrushEnd);
+    }
+    barGroup.add(clickPanel);
   }
   _renderDataShadow() {
     const info = this._dataShadowInfo = this._prepareDataShadowInfo();
@@ -57023,14 +57093,14 @@ class SliderZoomView extends DataZoomView_default {
     });
     const dataZoomModel = this.dataZoomModel;
     function createDataShadowGroup(isSelectedArea) {
-      const model64 = dataZoomModel.getModel(isSelectedArea ? "selectedDataBackground" : "dataBackground");
+      const model65 = dataZoomModel.getModel(isSelectedArea ? "selectedDataBackground" : "dataBackground");
       const group = new Group_default();
       const polygon = new Polygon_default({
         shape: {
           points: areaPoints
         },
         segmentIgnoreThreshold: 1,
-        style: model64.getModel("areaStyle").getAreaStyle(),
+        style: model65.getModel("areaStyle").getAreaStyle(),
         silent: true,
         z2: -20
       });
@@ -57039,7 +57109,7 @@ class SliderZoomView extends DataZoomView_default {
           points: linePoints
         },
         segmentIgnoreThreshold: 1,
-        style: model64.getModel("lineStyle").getLineStyle(),
+        style: model65.getModel("lineStyle").getLineStyle(),
         silent: true,
         z2: -19
       });
@@ -57090,28 +57160,26 @@ class SliderZoomView extends DataZoomView_default {
     return result;
   }
   _renderHandle() {
-    const displaybles = this._displayables;
-    const handles = displaybles.handles = [null, null];
-    const handleLabels = displaybles.handleLabels = [null, null];
+    const thisGroup = this.group;
+    const displayables = this._displayables;
+    const handles = displayables.handles = [null, null];
+    const handleLabels = displayables.handleLabels = [null, null];
     const sliderGroup = this._displayables.sliderGroup;
     const size = this._size;
     const dataZoomModel = this.dataZoomModel;
+    const api = this.api;
     const borderRadius = dataZoomModel.get("borderRadius") || 0;
-    sliderGroup.add(displaybles.filler = new Rect6({
-      draggable: true,
-      cursor: getCursor(this._orient),
-      drift: bind(this._onDragMove, this, "all"),
-      ondragstart: bind(this._showDataInfo, this, true),
-      ondragend: bind(this._onDragEnd, this),
-      onmouseover: bind(this._showDataInfo, this, true),
-      onmouseout: bind(this._showDataInfo, this, false),
+    const brushSelect = dataZoomModel.get("brushSelect");
+    const filler = displayables.filler = new Rect6({
+      silent: brushSelect,
       style: {
         fill: dataZoomModel.get("fillerColor")
       },
       textConfig: {
         position: "inside"
       }
-    }));
+    });
+    sliderGroup.add(filler);
     sliderGroup.add(new Rect6({
       silent: true,
       subPixelOptimize: true,
@@ -57143,7 +57211,8 @@ class SliderZoomView extends DataZoomView_default {
         drift: bind(this._onDragMove, this, handleIndex),
         ondragend: bind(this._onDragEnd, this),
         onmouseover: bind(this._showDataInfo, this, true),
-        onmouseout: bind(this._showDataInfo, this, false)
+        onmouseout: bind(this._showDataInfo, this, false),
+        z2: 5
       });
       const bRect = path2.getBoundingRect();
       const handleSize = dataZoomModel.get("handleSize");
@@ -57160,7 +57229,7 @@ class SliderZoomView extends DataZoomView_default {
       }
       sliderGroup.add(handles[handleIndex] = path2);
       const textStyleModel = dataZoomModel.getModel("textStyle");
-      this.group.add(handleLabels[handleIndex] = new Text_default({
+      thisGroup.add(handleLabels[handleIndex] = new Text_default({
         silent: true,
         invisible: true,
         style: {
@@ -57175,6 +57244,49 @@ class SliderZoomView extends DataZoomView_default {
         z2: 10
       }));
     }, this);
+    let actualMoveZone = filler;
+    if (brushSelect) {
+      const moveHandleHeight = parsePercent3(dataZoomModel.get("moveHandleSize"), size[1]);
+      const moveHandle = displayables.moveHandle = new Rect_default({
+        style: dataZoomModel.getModel("moveHandleStyle").getItemStyle(),
+        silent: true,
+        shape: {
+          r: [0, 0, 2, 2],
+          y: size[1],
+          height: moveHandleHeight
+        }
+      });
+      const iconSize = moveHandleHeight * 0.8;
+      const moveHandleIcon = displayables.moveHandleIcon = createSymbol(dataZoomModel.get("moveHandleIcon"), -iconSize / 2, -iconSize / 2, iconSize, iconSize, "#fff", true);
+      moveHandleIcon.silent = true;
+      moveHandleIcon.y = size[1] + moveHandleHeight / 2;
+      moveHandle.ensureState("emphasis").style = dataZoomModel.getModel(["emphasis", "moveHandleStyle"]).getItemStyle();
+      const moveZoneExpandSize = Math.min(size[1] / 2, Math.max(moveHandleHeight, 10));
+      actualMoveZone = displayables.moveZone = new Rect_default({
+        invisible: true,
+        shape: {
+          y: size[1] - moveZoneExpandSize,
+          height: moveHandleHeight + moveZoneExpandSize
+        }
+      });
+      actualMoveZone.on("mouseover", () => {
+        api.enterEmphasis(moveHandle);
+      }).on("mouseout", () => {
+        api.leaveEmphasis(moveHandle);
+      });
+      sliderGroup.add(moveHandle);
+      sliderGroup.add(moveHandleIcon);
+      sliderGroup.add(actualMoveZone);
+    }
+    actualMoveZone.attr({
+      draggable: true,
+      cursor: getCursor(this._orient),
+      drift: bind(this._onDragMove, this, "all"),
+      ondragstart: bind(this._showDataInfo, this, true),
+      ondragend: bind(this._onDragEnd, this),
+      onmouseover: bind(this._showDataInfo, this, true),
+      onmouseout: bind(this._showDataInfo, this, false)
+    });
   }
   _resetInterval() {
     const range = this._range = this.dataZoomModel.getPercentRange();
@@ -57213,6 +57325,15 @@ class SliderZoomView extends DataZoomView_default {
       width: handleInterval[1] - handleInterval[0],
       height: size[1]
     });
+    const viewExtent = {
+      x: handleInterval[0],
+      width: handleInterval[1] - handleInterval[0]
+    };
+    if (displaybles.moveHandle) {
+      displaybles.moveHandle.setShape(viewExtent);
+      displaybles.moveZone.setShape(viewExtent);
+      displaybles.moveHandleIcon && displaybles.moveHandleIcon.attr("x", viewExtent.x + viewExtent.width / 2);
+    }
     const dataShadowSegs = displaybles.dataShadowSegs;
     const segIntervals = [0, handleInterval[0], handleInterval[1], size[0]];
     for (let i = 0; i < dataShadowSegs.length; i++) {
@@ -57278,9 +57399,11 @@ class SliderZoomView extends DataZoomView_default {
   }
   _showDataInfo(showOrHide) {
     showOrHide = this._dragging || showOrHide;
-    const handleLabels = this._displayables.handleLabels;
+    const displayables = this._displayables;
+    const handleLabels = displayables.handleLabels;
     handleLabels[0].attr("invisible", !showOrHide);
     handleLabels[1].attr("invisible", !showOrHide);
+    displayables.moveHandle && this.api[showOrHide ? "enterEmphasis" : "leaveEmphasis"](displayables.moveHandle, 1);
   }
   _onDragMove(handleIndex, dx, dy, event3) {
     this._dragging = true;
@@ -57290,15 +57413,15 @@ class SliderZoomView extends DataZoomView_default {
     const changed = this._updateInterval(handleIndex, vertex[0]);
     const realtime = this.dataZoomModel.get("realtime");
     this._updateView(!realtime);
-    changed && realtime && this._dispatchZoomAction();
+    changed && realtime && this._dispatchZoomAction(true);
   }
   _onDragEnd() {
     this._dragging = false;
     this._showDataInfo(false);
     const realtime = this.dataZoomModel.get("realtime");
-    !realtime && this._dispatchZoomAction();
+    !realtime && this._dispatchZoomAction(false);
   }
-  _onClickPanelClick(e) {
+  _onClickPanel(e) {
     const size = this._size;
     const localPoint = this._displayables.sliderGroup.transformCoordToLocal(e.offsetX, e.offsetY);
     if (localPoint[0] < 0 || localPoint[0] > size[0] || localPoint[1] < 0 || localPoint[1] > size[1]) {
@@ -57308,18 +57431,74 @@ class SliderZoomView extends DataZoomView_default {
     const center3 = (handleEnds[0] + handleEnds[1]) / 2;
     const changed = this._updateInterval("all", localPoint[0] - center3);
     this._updateView();
-    changed && this._dispatchZoomAction();
+    changed && this._dispatchZoomAction(false);
   }
-  _dispatchZoomAction() {
+  _onBrushStart(e) {
+    const x = e.offsetX;
+    const y = e.offsetY;
+    this._brushStart = new Point4(x, y);
+    this._brushing = true;
+    this._brushStartTime = +new Date();
+  }
+  _onBrushEnd(e) {
+    if (!this._brushing) {
+      return;
+    }
+    const brushRect = this._displayables.brushRect;
+    this._brushing = false;
+    if (!brushRect) {
+      return;
+    }
+    brushRect.attr("ignore", true);
+    const brushShape = brushRect.shape;
+    const brushEndTime = +new Date();
+    if (brushEndTime - this._brushStartTime < 200 && Math.abs(brushShape.width) < 5) {
+      return;
+    }
+    const viewExtend = this._getViewExtent();
+    const percentExtent = [0, 100];
+    this._range = asc2([linearMap(brushShape.x, viewExtend, percentExtent, true), linearMap(brushShape.x + brushShape.width, viewExtend, percentExtent, true)]);
+    this._handleEnds = [brushShape.x, brushShape.x + brushShape.width];
+    this._updateView();
+    this._dispatchZoomAction(false);
+  }
+  _onBrush(e) {
+    if (this._brushing) {
+      stop(e.event);
+      this._updateBrushRect(e.offsetX, e.offsetY);
+    }
+  }
+  _updateBrushRect(mouseX, mouseY) {
+    const displayables = this._displayables;
+    const dataZoomModel = this.dataZoomModel;
+    let brushRect = displayables.brushRect;
+    if (!brushRect) {
+      brushRect = displayables.brushRect = new Rect6({
+        silent: true,
+        style: dataZoomModel.getModel("brushStyle").getItemStyle()
+      });
+      displayables.sliderGroup.add(brushRect);
+    }
+    brushRect.ignore = false;
+    const brushStart = this._brushStart;
+    const sliderGroup = this._displayables.sliderGroup;
+    const endPoint = sliderGroup.transformCoordToLocal(mouseX, mouseY);
+    const startPoint = sliderGroup.transformCoordToLocal(brushStart.x, brushStart.y);
+    const size = this._size;
+    brushRect.setShape({
+      x: startPoint[0],
+      y: 0,
+      width: endPoint[0] - startPoint[0],
+      height: size[1]
+    });
+  }
+  _dispatchZoomAction(realtime) {
     const range = this._range;
     this.api.dispatchAction({
       type: "dataZoom",
       from: this.uid,
       dataZoomId: this.dataZoomModel.id,
-      animation: {
-        easing: "cubicOut",
-        duration: 100
-      },
+      animation: realtime ? REALTIME_ANIMATION_CONFIG : null,
       start: range[0],
       end: range[1]
     });
@@ -57869,8 +58048,8 @@ class VisualMapModel5 extends Component_default {
   }
   isTargetSeries(seriesModel) {
     let is = false;
-    this.eachTargetSeries(function(model64) {
-      model64 === seriesModel && (is = true);
+    this.eachTargetSeries(function(model65) {
+      model65 === seriesModel && (is = true);
     });
     return is;
   }
@@ -58294,9 +58473,9 @@ class VisualMapView3 extends Component_default2 {
     return visualObj[visualCluster];
   }
   positionGroup(group) {
-    const model64 = this.visualMapModel;
+    const model65 = this.visualMapModel;
     const api = this.api;
-    positionElement(group, model64.getBoxLayoutParams(), {
+    positionElement(group, model65.getBoxLayoutParams(), {
       width: api.getWidth(),
       height: api.getHeight()
     });
@@ -58361,6 +58540,7 @@ class ContinuousView extends VisualMapView_default {
     this._hoverLinkDataIndices = [];
   }
   doRender(visualMapModel, ecModel, api, payload) {
+    this._api = api;
     if (!payload || payload.type !== "selectDataRange" || payload.from !== this.uid) {
       this._buildView();
     }
@@ -58749,7 +58929,7 @@ class ContinuousView extends VisualMapView_default {
     const handleLabels = this._shapes.handleLabels;
     if (handleLabels) {
       for (let i = 0; i < handleLabels.length; i++) {
-        enterBlur(handleLabels[i]);
+        this._api.enterBlur(handleLabels[i]);
       }
     }
   }
@@ -58834,7 +59014,7 @@ class ContinuousView extends VisualMapView_default {
     const handleLabels = this._shapes.handleLabels;
     if (handleLabels) {
       for (let i = 0; i < handleLabels.length; i++) {
-        leaveBlur(handleLabels[i]);
+        this._api.leaveBlur(handleLabels[i]);
       }
     }
   }
@@ -58911,8 +59091,8 @@ registerAction(actionInfo3, function(payload, ecModel) {
   ecModel.eachComponent({
     mainType: "visualMap",
     query: payload
-  }, function(model64) {
-    model64.setSelected(payload.selected);
+  }, function(model65) {
+    model65.setSelected(payload.selected);
   });
 });
 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node build.js --env dev",
-    "publish:surge": "node tool/build.js -t default && node build.js --env gh && surge public-gh echarts-next-examples-pissang.surge.sh"
+    "publish:surge": "node tool/build-example.js -t default && node build.js --env gh && surge public-gh echarts-next-examples-pissang.surge.sh"
   },
   "devDependencies": {
     "argparse": "^1.0.9",
