@@ -11,6 +11,19 @@
         factory((root.echarts = {}));
     }
 }(typeof self !== 'undefined' ? self : this, function (exports, b) {
+
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['exports'], factory);
+    } else if (typeof exports === 'object' && typeof exports.nodeName !== 'string') {
+        // CommonJS
+        factory(exports);
+    } else {
+        // Browser globals
+        factory((root.echarts = {}));
+    }
+}(typeof self !== 'undefined' ? self : this, function (exports, b) {
 let __defineProperty = Object.defineProperty;
 let __export = (target, all) => {
   __defineProperty(target, "__esModule", {
@@ -57333,6 +57346,7 @@ class SliderZoomView extends DataZoomView_default {
     if (displaybles.moveHandle) {
       displaybles.moveHandle.setShape(viewExtent);
       displaybles.moveZone.setShape(viewExtent);
+      displaybles.moveZone.getBoundingRect();
       displaybles.moveHandleIcon && displaybles.moveHandleIcon.attr("x", viewExtent.x + viewExtent.width / 2);
     }
     const dataShadowSegs = displaybles.dataShadowSegs;
@@ -57486,6 +57500,7 @@ class SliderZoomView extends DataZoomView_default {
     const endPoint = sliderGroup.transformCoordToLocal(mouseX, mouseY);
     const startPoint = sliderGroup.transformCoordToLocal(brushStart.x, brushStart.y);
     const size = this._size;
+    endPoint[0] = Math.max(Math.min(size[0], endPoint[0]), 0);
     brushRect.setShape({
       x: startPoint[0],
       y: 0,
@@ -60717,4 +60732,5 @@ __export(exports, {
 });
 //# sourceMappingURL=echarts.js.map
 
+}));
 }));
