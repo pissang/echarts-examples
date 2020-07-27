@@ -1,17 +1,5 @@
 
-(function (root, factory) {
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(['exports'], factory);
-    } else if (typeof exports === 'object' && typeof exports.nodeName !== 'string') {
-        // CommonJS
-        factory(exports);
-    } else {
-        // Browser globals
-        factory((root.echarts = {}));
-    }
-}(typeof self !== 'undefined' ? self : this, function (exports, b) {
-
+// ------------- WRAPPED UMD --------------- //
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -10540,18 +10528,21 @@ class ZRText2 extends Displayable_default {
     shadowStyle.shadowOffsetX = style2.shadowOffsetX || 0;
     shadowStyle.shadowOffsetY = style2.shadowOffsetY || 0;
   }
+  static normalizeFontSize(fontSize) {
+    let fontSizeStr = "";
+    if (typeof fontSize === "string" && (fontSize.indexOf("px") !== -1 || fontSize.indexOf("rem") !== -1 || fontSize.indexOf("em") !== -1)) {
+      fontSizeStr = fontSize;
+    } else if (!isNaN(+fontSize)) {
+      fontSizeStr = fontSize + "px";
+    } else {
+      fontSizeStr = "12px";
+    }
+    return fontSizeStr;
+  }
   static makeFont(style2) {
     let font = "";
     if (style2.fontSize || style2.fontFamily || style2.fontWeight) {
-      let fontSize = "";
-      if (typeof style2.fontSize === "string" && (style2.fontSize.indexOf("px") !== -1 || style2.fontSize.indexOf("rem") !== -1 || style2.fontSize.indexOf("em") !== -1)) {
-        fontSize = style2.fontSize;
-      } else if (!isNaN(+style2.fontSize)) {
-        fontSize = style2.fontSize + "px";
-      } else {
-        fontSize = "12px";
-      }
-      font = [style2.fontStyle, style2.fontWeight, fontSize, style2.fontFamily || "sans-serif"].join(" ");
+      font = [style2.fontStyle, style2.fontWeight, ZRText2.normalizeFontSize(style2.fontSize), style2.fontFamily || "sans-serif"].join(" ");
     }
     return font && trim(font) || style2.textFont || style2.font;
   }
@@ -23871,7 +23862,7 @@ function fixExtent(niceTickExtent, extent3) {
 function contain3(val, extent3) {
   return val >= extent3[0] && val <= extent3[1];
 }
-function normalize4(val, extent3) {
+function normalize5(val, extent3) {
   if (extent3[1] === extent3[0]) {
     return 0.5;
   }
@@ -23905,7 +23896,7 @@ class OrdinalScale6 extends Scale_default {
   }
   normalize(val) {
     val = this.getCategoryIndex(this.parse(val));
-    return normalize4(val, this._extent);
+    return normalize5(val, this._extent);
   }
   scale(val) {
     val = this.getCategoryIndex(val);
@@ -23977,7 +23968,7 @@ class IntervalScale2 extends Scale_default {
     return contain3(val, this._extent);
   }
   normalize(val) {
-    return normalize4(val, this._extent);
+    return normalize5(val, this._extent);
   }
   scale(val) {
     return scale3(val, this._extent);
@@ -24592,7 +24583,7 @@ class TimeScale extends Interval_default {
     return contain3(this.parse(val), this._extent);
   }
   normalize(val) {
-    return normalize4(this.parse(val), this._extent);
+    return normalize5(this.parse(val), this._extent);
   }
   scale(val) {
     return scale3(val, this._extent);
@@ -24692,7 +24683,7 @@ class LogScale extends Scale_default {
   }
   normalize(val) {
     val = mathLog(val) / mathLog(this.base);
-    return normalize4(val, this._extent);
+    return normalize5(val, this._extent);
   }
   scale(val) {
     val = scale3(val, this._extent);
@@ -25950,7 +25941,10 @@ LineSeriesModel.defaultOption = {
     type: "solid"
   },
   emphasis: {
-    scale: true
+    scale: true,
+    lineStyle: {
+      width: "bolder"
+    }
   },
   step: false,
   smooth: false,
@@ -27077,6 +27071,11 @@ class LineView2 extends Chart_default {
       lineJoin: "bevel"
     }));
     setStatesStylesFromModel(polyline, seriesModel, "lineStyle");
+    const shouldBolderOnEmphasis = seriesModel.get(["emphasis", "lineStyle", "width"]) === "bolder";
+    if (shouldBolderOnEmphasis) {
+      const emphasisLineStyle = polyline.getState("emphasis").style;
+      emphasisLineStyle.lineWidth = polyline.style.lineWidth + 1;
+    }
     getECData(polyline).seriesIndex = seriesModel.seriesIndex;
     enableHoverEmphasis(polyline, focus, blurScope);
     const smooth = getSmooth(seriesModel.get("smooth"));
@@ -28410,7 +28409,7 @@ function rectCoordAxisBuildSplitArea(axisView, axisGroup, axisModel, gridModel) 
   }
   inner4(axisView).splitAreaColors = newSplitAreaColors;
 }
-function rectCoordAxisHandleRemove2(axisView) {
+function rectCoordAxisHandleRemove(axisView) {
   inner4(axisView).splitAreaColors = null;
 }
 
@@ -28445,7 +28444,7 @@ class CartesianAxisView2 extends AxisView_default {
     super.render(axisModel, ecModel, api, payload);
   }
   remove() {
-    rectCoordAxisHandleRemove2(this);
+    rectCoordAxisHandleRemove(this);
   }
 }
 CartesianAxisView2.type = "cartesianAxis";
@@ -34902,6 +34901,7 @@ class Breadcrumb {
         z: 10,
         onclick: curry(onSelect, itemNode)
       });
+      el.disableLabelAnimation = true;
       this.group.add(el);
       packEventData(el, seriesModel, itemNode);
       lastX += itemWidth + ITEM_GAP;
@@ -34971,6 +34971,7 @@ function createWrap() {
           duration: item.time,
           delay: item.delay,
           easing: item.easing,
+          setToFinal: true,
           done
         });
       }
@@ -35548,18 +35549,26 @@ function renderNode(seriesModel, thisStorage, oldStorage, reRoot, lastsForAnimat
       labelFetcher: seriesModel,
       labelDataIndex: thisNode.dataIndex
     });
+    const textEl = rectEl.getTextContent();
+    const textStyle2 = textEl.style;
+    const textPadding = normalizeCssArray(textStyle2.padding || 0);
     if (upperLabelRect) {
       rectEl.setTextConfig({
         layoutRect: upperLabelRect
       });
-      const textEl2 = rectEl.getTextContent();
-      textEl2.disableLabelLayout = true;
+      textEl.disableLabelLayout = true;
     }
-    const textEl = rectEl.getTextContent();
-    const textStyle2 = textEl.style;
+    textEl.beforeUpdate = function() {
+      const width2 = Math.max((upperLabelRect ? upperLabelRect.width : rectEl.shape.width) - textPadding[1] - textPadding[3], 0);
+      const height2 = Math.max((upperLabelRect ? upperLabelRect.height : rectEl.shape.height) - textPadding[0] - textPadding[2], 0);
+      if (textStyle2.width !== width2 || textStyle2.height !== height2) {
+        textEl.setStyle({
+          width: width2,
+          height: height2
+        });
+      }
+    };
     textStyle2.truncateMinChar = 2;
-    textStyle2.width = width;
-    textStyle2.height = height;
     textStyle2.lineOverflow = "truncate";
     addDrillDownIcon(textStyle2, upperLabelRect, thisLayout);
     const textEmphasisState = textEl.getState("emphasis");
@@ -37901,7 +37910,7 @@ function categoryVisual_default(ecModel) {
 }
 
 // src/chart/graph/edgeVisual.ts
-function normalize2(a) {
+function normalize3(a) {
   if (!(a instanceof Array)) {
     a = [a, a];
   }
@@ -37911,8 +37920,8 @@ function edgeVisual_default(ecModel) {
   ecModel.eachSeriesByType("graph", function(seriesModel) {
     const graph2 = seriesModel.getGraph();
     const edgeData = seriesModel.getEdgeData();
-    const symbolType = normalize2(seriesModel.get("edgeSymbol"));
-    const symbolSize = normalize2(seriesModel.get("edgeSymbolSize"));
+    const symbolType = normalize3(seriesModel.get("edgeSymbol"));
+    const symbolSize = normalize3(seriesModel.get("edgeSymbolSize"));
     edgeData.setVisual("fromSymbol", symbolType && symbolType[0]);
     edgeData.setVisual("toSymbol", symbolType && symbolType[1]);
     edgeData.setVisual("fromSymbolSize", symbolSize && symbolSize[0]);
@@ -37921,8 +37930,8 @@ function edgeVisual_default(ecModel) {
     edgeData.each(function(idx) {
       const itemModel = edgeData.getItemModel(idx);
       const edge = graph2.getEdgeByIndex(idx);
-      const symbolType2 = normalize2(itemModel.getShallow("symbol", true));
-      const symbolSize2 = normalize2(itemModel.getShallow("symbolSize", true));
+      const symbolType2 = normalize3(itemModel.getShallow("symbol", true));
+      const symbolSize2 = normalize3(itemModel.getShallow("symbolSize", true));
       const style2 = itemModel.getModel("lineStyle").getLineStyle();
       const existsStyle = edgeData.ensureUniqueItemVisual(idx, "style");
       extend(existsStyle, style2);
@@ -43572,7 +43581,7 @@ LinesView2.type = "lines";
 Chart_default.registerClass(LinesView2);
 
 // src/chart/lines/linesVisual.ts
-function normalize3(a) {
+function normalize4(a) {
   if (!(a instanceof Array)) {
     a = [a, a];
   }
@@ -43581,8 +43590,8 @@ function normalize3(a) {
 const linesVisual2 = {
   seriesType: "lines",
   reset(seriesModel) {
-    const symbolType = normalize3(seriesModel.get("symbol"));
-    const symbolSize = normalize3(seriesModel.get("symbolSize"));
+    const symbolType = normalize4(seriesModel.get("symbol"));
+    const symbolSize = normalize4(seriesModel.get("symbolSize"));
     const data = seriesModel.getData();
     data.setVisual("fromSymbol", symbolType && symbolType[0]);
     data.setVisual("toSymbol", symbolType && symbolType[1]);
@@ -43590,8 +43599,8 @@ const linesVisual2 = {
     data.setVisual("toSymbolSize", symbolSize && symbolSize[1]);
     function dataEach(data2, idx) {
       const itemModel = data2.getItemModel(idx);
-      const symbolType2 = normalize3(itemModel.getShallow("symbol", true));
-      const symbolSize2 = normalize3(itemModel.getShallow("symbolSize", true));
+      const symbolType2 = normalize4(itemModel.getShallow("symbol", true));
+      const symbolSize2 = normalize4(itemModel.getShallow("symbolSize", true));
       symbolType2[0] && data2.setItemVisual(idx, "fromSymbol", symbolType2[0]);
       symbolType2[1] && data2.setItemVisual(idx, "toSymbol", symbolType2[1]);
       symbolSize2[0] && data2.setItemVisual(idx, "fromSymbolSize", symbolSize2[0]);
@@ -43659,7 +43668,7 @@ class HeatmapLayer {
     const canvas2 = createCanvas();
     this.canvas = canvas2;
   }
-  update(data, width, height, normalize5, colorFunc, isInRange) {
+  update(data, width, height, normalize6, colorFunc, isInRange) {
     const brush3 = this._getBrush();
     const gradientInRange = this._getGradient(colorFunc, "inRange");
     const gradientOutOfRange = this._getGradient(colorFunc, "outOfRange");
@@ -43674,7 +43683,7 @@ class HeatmapLayer {
       const x = p[0];
       const y = p[1];
       const value = p[2];
-      const alpha = normalize5(value);
+      const alpha = normalize6(value);
       ctx.globalAlpha = alpha;
       ctx.drawImage(brush3, x - r, y - r);
     }
@@ -44763,7 +44772,7 @@ class SingleAxisView extends AxisView_default {
     super.render(axisModel, ecModel, api, payload);
   }
   remove() {
-    rectCoordAxisHandleRemove2(this);
+    rectCoordAxisHandleRemove(this);
   }
 }
 SingleAxisView.type = "singleAxis";
@@ -52288,8 +52297,11 @@ function makeAxisFinder(dzFeatureModel) {
     xAxisId: dzFeatureModel.get("xAxisId", true),
     yAxisId: dzFeatureModel.get("yAxisId", true)
   };
-  if (setting.xAxisIndex == null && setting.yAxisIndex == null && setting.xAxisId == null && setting.yAxisId == null) {
-    setting.xAxisIndex = setting.yAxisIndex = "all";
+  if (setting.xAxisIndex == null && setting.xAxisId == null) {
+    setting.xAxisIndex = "all";
+  }
+  if (setting.yAxisIndex == null && setting.yAxisId == null) {
+    setting.yAxisIndex = "all";
   }
   return setting;
 }
@@ -54818,14 +54830,15 @@ class SliderTimelineView2 extends TimelineView_default {
     const currentIndex = this.model.getCurrentIndex();
     const tickSymbols = this._tickSymbols;
     const tickLabels = this._tickLabels;
-    if (!(tickSymbols || tickLabels)) {
-      return;
+    if (tickSymbols) {
+      for (let i = 0; i < tickSymbols.length; i++) {
+        tickSymbols && tickSymbols[i] && tickSymbols[i].toggleState("progress", i < currentIndex);
+      }
     }
-    for (let i = 0; i < tickSymbols.length; i++) {
-      tickSymbols && tickSymbols[i] && tickSymbols[i].toggleState("progress", i < currentIndex);
-    }
-    for (let i = 0; i < tickLabels.length; i++) {
-      tickLabels && tickLabels[i] && tickLabels[i].toggleState("progress", labelDataIndexStore(tickLabels[i]).dataIndex <= currentIndex);
+    if (tickLabels) {
+      for (let i = 0; i < tickLabels.length; i++) {
+        tickLabels && tickLabels[i] && tickLabels[i].toggleState("progress", labelDataIndexStore(tickLabels[i]).dataIndex <= currentIndex);
+      }
     }
   }
 }
@@ -56860,7 +56873,7 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
     borderColor: "#ACB8D1"
   },
   moveHandleSize: 7,
-  moveHandleIcon: "path://M15 15.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM15 9.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM15 8.016q-0.797 0-1.406-0.609t-0.609-1.406 0.609-1.406 1.406-0.609 1.406 0.609 0.609 1.406-0.609 1.406-1.406 0.609zM9 3.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM9 9.984q0.797 0 1.406 0.609t0.609 1.406-0.609 1.406-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609zM11.016 18q0 0.797-0.609 1.406t-1.406 0.609-1.406-0.609-0.609-1.406 0.609-1.406 1.406-0.609 1.406 0.609 0.609 1.406z",
+  moveHandleIcon: "path://M-320.9-50L-320.9-50c18.1,0,27.1,9,27.1,27.1V85.7c0,18.1-9,27.1-27.1,27.1l0,0c-18.1,0-27.1-9-27.1-27.1V-22.9C-348-41-339-50-320.9-50z M-212.3-50L-212.3-50c18.1,0,27.1,9,27.1,27.1V85.7c0,18.1-9,27.1-27.1,27.1l0,0c-18.1,0-27.1-9-27.1-27.1V-22.9C-239.4-41-230.4-50-212.3-50z M-103.7-50L-103.7-50c18.1,0,27.1,9,27.1,27.1V85.7c0,18.1-9,27.1-27.1,27.1l0,0c-18.1,0-27.1-9-27.1-27.1V-22.9C-130.9-41-121.8-50-103.7-50z",
   moveHandleStyle: {
     color: "#D2DBEE",
     opacity: 0.7
@@ -57266,14 +57279,14 @@ class SliderZoomView extends DataZoomView_default {
         silent: true,
         shape: {
           r: [0, 0, 2, 2],
-          y: size[1],
+          y: size[1] - 0.5,
           height: moveHandleHeight
         }
       });
       const iconSize = moveHandleHeight * 0.8;
       const moveHandleIcon = displayables.moveHandleIcon = createSymbol(dataZoomModel.get("moveHandleIcon"), -iconSize / 2, -iconSize / 2, iconSize, iconSize, "#fff", true);
       moveHandleIcon.silent = true;
-      moveHandleIcon.y = size[1] + moveHandleHeight / 2;
+      moveHandleIcon.y = size[1] + moveHandleHeight / 2 - 0.5;
       moveHandle.ensureState("emphasis").style = dataZoomModel.getModel(["emphasis", "moveHandleStyle"]).getItemStyle();
       const moveZoneExpandSize = Math.min(size[1] / 2, Math.max(moveHandleHeight, 10));
       actualMoveZone = displayables.moveZone = new Rect_default({
@@ -60732,5 +60745,4 @@ __export(exports, {
 });
 //# sourceMappingURL=echarts.js.map
 
-}));
 }));
