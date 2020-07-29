@@ -47,10 +47,7 @@ option = {
         splitLine: {show: false},
         splitArea: {show: false}
     },
-    yAxis: {
-        inverse: true,
-        splitArea: {show: false}
-    },
+    yAxis: {},
     grid: {
         left: 100
     },
