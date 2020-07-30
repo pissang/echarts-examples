@@ -59,6 +59,14 @@ var EXAMPLES = [
   },
   {
     "category": [
+      "line"
+    ],
+    "id": "area-time-axis",
+    "title": "Area Chart with Time Axis",
+    "difficulty": 2
+  },
+  {
+    "category": [
       "dataset",
       "pie"
     ],

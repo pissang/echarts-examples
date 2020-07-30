@@ -24,18 +24,6 @@ let __export = (target, all) => {
     });
 };
 
-// src/config.ts
-let dev;
-if (typeof window !== "undefined") {
-  dev = window.__DEV__;
-} else if (typeof global !== "undefined") {
-  dev = global.__DEV__;
-}
-if (typeof dev === "undefined") {
-  dev = true;
-}
-const __DEV__ = dev;
-
 // node_modules/zrender/src/core/env.ts
 class Browser {
   constructor() {
@@ -3105,9 +3093,9 @@ class Track {
   getAdditiveTrack() {
     return this._additiveTrack;
   }
-  addKeyframe(time, value) {
-    if (time >= this.maxTime) {
-      this.maxTime = time;
+  addKeyframe(time2, value) {
+    if (time2 >= this.maxTime) {
+      this.maxTime = time2;
     } else {
       this._needsSort = true;
     }
@@ -3165,7 +3153,7 @@ class Track {
       }
     }
     const kf = {
-      time,
+      time: time2,
       value,
       percent: 0
     };
@@ -3349,10 +3337,10 @@ class Animator2 {
   changeTarget(target) {
     this._target = target;
   }
-  when(time, props) {
-    return this.whenWithKeys(time, props, keys(props));
+  when(time2, props) {
+    return this.whenWithKeys(time2, props, keys(props));
   }
-  whenWithKeys(time, props, propNames) {
+  whenWithKeys(time2, props, propNames) {
     const tracks = this._tracks;
     for (let i = 0; i < propNames.length; i++) {
       const propName = propNames[i];
@@ -3373,14 +3361,14 @@ class Animator2 {
         if (initialValue == null) {
           continue;
         }
-        if (time !== 0) {
+        if (time2 !== 0) {
           track.addKeyframe(0, cloneValue(initialValue));
         }
         this._trackKeys.push(propName);
       }
-      track.addKeyframe(time, cloneValue(props[propName]));
+      track.addKeyframe(time2, cloneValue(props[propName]));
     }
-    this._maxTime = Math.max(this._maxTime, time);
+    this._maxTime = Math.max(this._maxTime, time2);
     return this;
   }
   during(callback) {
@@ -3479,8 +3467,8 @@ class Animator2 {
     }
     this._clip = null;
   }
-  delay(time) {
-    this._delay = time;
+  delay(time2) {
+    this._delay = time2;
     return this;
   }
   done(cb) {
@@ -3626,12 +3614,12 @@ class Animation extends Eventful2 {
     animator.animation = null;
   }
   update() {
-    const time = new Date().getTime() - this._pausedTime;
-    const delta = time - this._time;
+    const time2 = new Date().getTime() - this._pausedTime;
+    const delta = time2 - this._time;
     let clip2 = this._clipsHead;
     while (clip2) {
       const nextClip = clip2.next;
-      let finished = clip2.step(time, delta);
+      let finished = clip2.step(time2, delta);
       if (finished) {
         clip2.ondestroy && clip2.ondestroy();
         this.removeClip(clip2);
@@ -3640,7 +3628,7 @@ class Animation extends Eventful2 {
         clip2 = nextClip;
       }
     }
-    this._time = time;
+    this._time = time2;
     this.onframe(delta);
     this.trigger("frame", delta);
     if (this.stage.update) {
@@ -10363,6 +10351,8 @@ class ZRText2 extends Displayable_default {
       if (textStroke) {
         subElStyle.stroke = textStroke;
         subElStyle.lineWidth = style2.lineWidth || defaultLineWidth;
+        subElStyle.lineDash = style2.lineDash;
+        subElStyle.lineDashOffset = style2.lineDashOffset || 0;
       }
       if (textFill) {
         subElStyle.fill = textFill;
@@ -10389,9 +10379,13 @@ class ZRText2 extends Displayable_default {
     const verticalAlign = style2.verticalAlign || defaultStyle.verticalAlign;
     const boxX = adjustTextX(baseX, outerWidth, textAlign);
     const boxY = adjustTextY(baseY, outerHeight, verticalAlign);
-    let xLeft = adjustTextX(baseX, contentBlock.contentWidth, textAlign);
-    let lineTop = adjustTextY(baseY, contentBlock.contentHeight, verticalAlign);
-    const xRight = xLeft + contentWidth;
+    let xLeft = boxX;
+    let lineTop = boxY;
+    if (textPadding) {
+      xLeft += textPadding[3];
+      lineTop += textPadding[0];
+    }
+    let xRight = xLeft + contentWidth;
     if (needDrawBackground(style2)) {
       this._renderBackground(style2, boxX, boxY, outerWidth, outerHeight);
     }
@@ -10469,6 +10463,8 @@ class ZRText2 extends Displayable_default {
     subElStyle.font = token.font || DEFAULT_FONT;
     if (textStroke) {
       subElStyle.lineWidth = retrieve3(tokenStyle.lineWidth, style2.lineWidth, defaultLineWidth);
+      subElStyle.lineDash = retrieve2(tokenStyle.lineDash, style2.lineDash);
+      subElStyle.lineDashOffset = style2.lineDashOffset || 0;
       subElStyle.stroke = textStroke;
     }
     if (textFill) {
@@ -10521,6 +10517,12 @@ class ZRText2 extends Displayable_default {
       rectStyle.lineWidth = textBorderWidth;
       rectStyle.stroke = textBorderColor;
       rectStyle.strokeOpacity = retrieve2(style2.strokeOpacity, 1);
+      rectStyle.lineDash = style2.borderDash;
+      rectStyle.lineDashOffset = style2.borderDashOffset || 0;
+      if (rectEl.hasFill() && rectEl.hasStroke()) {
+        rectStyle.strokeFirst = true;
+        rectStyle.lineWidth *= 2;
+      }
     }
     const shadowStyle = (rectEl || imgEl).style;
     shadowStyle.shadowBlur = style2.shadowBlur || 0;
@@ -10528,21 +10530,18 @@ class ZRText2 extends Displayable_default {
     shadowStyle.shadowOffsetX = style2.shadowOffsetX || 0;
     shadowStyle.shadowOffsetY = style2.shadowOffsetY || 0;
   }
-  static normalizeFontSize(fontSize) {
-    let fontSizeStr = "";
-    if (typeof fontSize === "string" && (fontSize.indexOf("px") !== -1 || fontSize.indexOf("rem") !== -1 || fontSize.indexOf("em") !== -1)) {
-      fontSizeStr = fontSize;
-    } else if (!isNaN(+fontSize)) {
-      fontSizeStr = fontSize + "px";
-    } else {
-      fontSizeStr = "12px";
-    }
-    return fontSizeStr;
-  }
   static makeFont(style2) {
     let font = "";
     if (style2.fontSize || style2.fontFamily || style2.fontWeight) {
-      font = [style2.fontStyle, style2.fontWeight, ZRText2.normalizeFontSize(style2.fontSize), style2.fontFamily || "sans-serif"].join(" ");
+      let fontSize = "";
+      if (typeof style2.fontSize === "string" && (style2.fontSize.indexOf("px") !== -1 || style2.fontSize.indexOf("rem") !== -1 || style2.fontSize.indexOf("em") !== -1)) {
+        fontSize = style2.fontSize;
+      } else if (!isNaN(+style2.fontSize)) {
+        fontSize = style2.fontSize + "px";
+      } else {
+        fontSize = "12px";
+      }
+      font = [style2.fontStyle, style2.fontWeight, fontSize, style2.fontFamily || "sans-serif"].join(" ");
     }
     return font && trim(font) || style2.textFont || style2.font;
   }
@@ -11259,9 +11258,9 @@ class ZRender {
     el.removeSelfFromZr(this);
     this._needsRefresh = true;
   }
-  configLayer(zLevel, config58) {
+  configLayer(zLevel, config7) {
     if (this.painter.configLayer) {
-      this.painter.configLayer(zLevel, config58);
+      this.painter.configLayer(zLevel, config7);
     }
     this._needsRefresh = true;
   }
@@ -11584,7 +11583,7 @@ function remRadian(radian2) {
 function isRadianAroundZero(val) {
   return val > -RADIAN_EPSILON && val < RADIAN_EPSILON;
 }
-const TIME_REG = /^(?:(\d{4})(?:[-\/](\d{1,2})(?:[-\/](\d{1,2})(?:[T ](\d{1,2})(?::(\d\d)(?::(\d\d)(?:[.,](\d+))?)?)?(Z|[\+\-]\d\d:?\d\d)?)?)?)?)?$/;
+const TIME_REG = /^(?:(\d{4})(?:[-\/](\d{1,2})(?:[-\/](\d{1,2})(?:[T ](\d{1,2})(?::(\d{1,2})(?::(\d{1,2})(?:[.,](\d+))?)?)?(Z|[\+\-]\d\d:?\d\d)?)?)?)?)?$/;
 function parseDate(value) {
   if (value instanceof Date) {
     return value;
@@ -11871,7 +11870,7 @@ function keyExistAndEqual(attr2, obj1, obj2) {
   return key1 != null && key2 != null && key1 + "" === key2 + "";
 }
 function makeComparableKey(val) {
-  if (__DEV__) {
+  if ('_DEV_') {
     if (val == null) {
       throw new Error();
     }
@@ -11879,7 +11878,7 @@ function makeComparableKey(val) {
   return val + "";
 }
 function validateIdOrName(idOrName) {
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(isValidIdOrName(idOrName), "`" + idOrName + "` is invalid id or name. Must be a string.");
   }
 }
@@ -12096,7 +12095,7 @@ function isExtendedClass(clz) {
 function enableClassExtend(rootClz, mandatoryMethods) {
   rootClz.$constructor = rootClz;
   rootClz.extend = function(proto2) {
-    if (__DEV__) {
+    if ('_DEV_') {
       each(mandatoryMethods, function(method) {
         if (!proto2[method]) {
           console.warn("Method `" + method + "` should be implemented" + (proto2.type ? " in " + proto2.type : "") + ".");
@@ -12136,7 +12135,7 @@ let classBase = Math.round(Math.random() * 10);
 function enableClassCheck(target) {
   const classAttr = ["__\0is_clz", classBase++].join("_");
   target.prototype[classAttr] = true;
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(!target.isInstance, 'The method "is" can not be defined.');
   }
   target.isInstance = function(obj) {
@@ -12159,7 +12158,7 @@ function enableClassManagement(target, options) {
       clz.prototype.type = componentFullType;
       const componentTypeInfo = parseClassType(componentFullType);
       if (!componentTypeInfo.sub) {
-        if (__DEV__) {
+        if ('_DEV_') {
           if (storage2[componentTypeInfo.main]) {
             console.warn(componentTypeInfo.main + " exists.");
           }
@@ -12200,11 +12199,11 @@ function enableClassManagement(target, options) {
     return !!storage2[componentTypeInfo.main];
   };
   target.getAllClassMainTypes = function() {
-    const types298 = [];
+    const types303 = [];
     each(storage2, function(obj, type) {
-      types298.push(type);
+      types303.push(type);
     });
-    return types298;
+    return types303;
   };
   target.hasSubTypes = function(componentType) {
     const componentTypeInfo = parseClassType(componentType);
@@ -12263,6 +12262,1287 @@ class AreaStyleMixin {
   }
 }
 
+// src/util/ecData.ts
+const getECData = makeInner();
+
+// src/util/states.ts
+let _highlightNextDigit = 1;
+const _highlightKeyMap = {};
+const getSavedStates = makeInner();
+const HOVER_STATE_NORMAL = 0;
+const HOVER_STATE_BLUR = 1;
+const HOVER_STATE_EMPHASIS = 2;
+const SPECIAL_STATES = ["emphasis", "blur", "select"];
+const DISPLAY_STATES = ["normal", "emphasis", "blur", "select"];
+const Z2_EMPHASIS_LIFT = 10;
+const Z2_SELECT_LIFT = 9;
+const HIGHLIGHT_ACTION_TYPE = "highlight";
+const DOWNPLAY_ACTION_TYPE = "downplay";
+const SELECT_ACTION_TYPE = "select";
+const UNSELECT_ACTION_TYPE = "unselect";
+const TOGGLE_SELECT_ACTION_TYPE = "toggleSelect";
+function hasFillOrStroke(fillOrStroke) {
+  return fillOrStroke != null && fillOrStroke !== "none";
+}
+const liftedColorCache = new LRU2(100);
+function liftColor(color8) {
+  if (typeof color8 !== "string") {
+    return color8;
+  }
+  let liftedColor = liftedColorCache.get(color8);
+  if (!liftedColor) {
+    liftedColor = lift(color8, -0.1);
+    liftedColorCache.put(color8, liftedColor);
+  }
+  return liftedColor;
+}
+function doChangeHoverState(el, stateName, hoverStateEnum) {
+  if (el.onHoverStateChange) {
+    if ((el.hoverState || 0) !== hoverStateEnum) {
+      el.onHoverStateChange(stateName);
+    }
+  }
+  el.hoverState = hoverStateEnum;
+}
+function singleEnterEmphasis(el) {
+  doChangeHoverState(el, "emphasis", HOVER_STATE_EMPHASIS);
+}
+function singleLeaveEmphasis(el) {
+  doChangeHoverState(el, "normal", HOVER_STATE_NORMAL);
+}
+function singleEnterBlur(el) {
+  doChangeHoverState(el, "blur", HOVER_STATE_BLUR);
+}
+function singleLeaveBlur(el) {
+  doChangeHoverState(el, "normal", HOVER_STATE_NORMAL);
+}
+function singleEnterSelect(el) {
+  el.selected = true;
+}
+function singleLeaveSelect(el) {
+  el.selected = false;
+}
+function updateElementState(el, updater, commonParam) {
+  updater(el, commonParam);
+}
+function traverseUpdateState(el, updater, commonParam) {
+  updateElementState(el, updater, commonParam);
+  el.isGroup && el.traverse(function(child) {
+    updateElementState(child, updater, commonParam);
+  });
+}
+function setStatesFlag(el, stateName) {
+  switch (stateName) {
+    case "emphasis":
+      el.hoverState = HOVER_STATE_EMPHASIS;
+      break;
+    case "normal":
+      el.hoverState = HOVER_STATE_NORMAL;
+      break;
+    case "blur":
+      el.hoverState = HOVER_STATE_BLUR;
+      break;
+    case "select":
+      el.selected = true;
+  }
+}
+function getFromStateStyle(el, props, toStateName, defaultValue) {
+  const style2 = el.style;
+  const fromState = {};
+  for (let i = 0; i < props.length; i++) {
+    const propName = props[i];
+    const val = style2[propName];
+    fromState[propName] = val == null ? defaultValue && defaultValue[propName] : val;
+  }
+  for (let i = 0; i < el.animators.length; i++) {
+    const animator = el.animators[i];
+    if (animator.__fromStateTransition && animator.__fromStateTransition.indexOf(toStateName) < 0 && animator.targetName === "style") {
+      animator.saveFinalToTarget(fromState, props);
+    }
+  }
+  return fromState;
+}
+function createEmphasisDefaultState(el, stateName, targetStates, state) {
+  const hasSelect = targetStates && indexOf(targetStates, "select") >= 0;
+  let cloned = false;
+  if (el instanceof Path_default) {
+    const store = getSavedStates(el);
+    const fromFill = hasSelect ? store.selectFill || store.normalFill : store.normalFill;
+    const fromStroke = hasSelect ? store.selectStroke || store.normalStroke : store.normalStroke;
+    if (hasFillOrStroke(fromFill) || hasFillOrStroke(fromStroke)) {
+      state = state || {};
+      let emphasisStyle = state.style || {};
+      if (!hasFillOrStroke(emphasisStyle.fill) && hasFillOrStroke(fromFill)) {
+        cloned = true;
+        state = extend({}, state);
+        emphasisStyle = extend({}, emphasisStyle);
+        emphasisStyle.fill = liftColor(fromFill);
+      } else if (!hasFillOrStroke(emphasisStyle.stroke) && hasFillOrStroke(fromStroke)) {
+        if (!cloned) {
+          state = extend({}, state);
+          emphasisStyle = extend({}, emphasisStyle);
+        }
+        emphasisStyle.stroke = liftColor(fromStroke);
+      }
+      state.style = emphasisStyle;
+    }
+  }
+  if (state) {
+    if (state.z2 == null) {
+      if (!cloned) {
+        state = extend({}, state);
+      }
+      const z2EmphasisLift = el.z2EmphasisLift;
+      state.z2 = el.z2 + (z2EmphasisLift != null ? z2EmphasisLift : Z2_EMPHASIS_LIFT);
+    }
+  }
+  return state;
+}
+function createSelectDefaultState(el, stateName, state) {
+  if (state) {
+    if (state.z2 == null) {
+      state = extend({}, state);
+      const z2SelectLift = el.z2SelectLift;
+      state.z2 = el.z2 + (z2SelectLift != null ? z2SelectLift : Z2_SELECT_LIFT);
+    }
+  }
+  return state;
+}
+function createBlurDefaultState(el, stateName, state) {
+  const hasBlur = indexOf(el.currentStates, stateName) >= 0;
+  const currentOpacity = el.style.opacity;
+  const fromState = !hasBlur ? getFromStateStyle(el, ["opacity"], stateName, {
+    opacity: 1
+  }) : null;
+  state = state || {};
+  let blurStyle = state.style || {};
+  if (blurStyle.opacity == null) {
+    state = extend({}, state);
+    blurStyle = extend({
+      opacity: hasBlur ? currentOpacity : fromState.opacity * 0.1
+    }, blurStyle);
+    state.style = blurStyle;
+  }
+  return state;
+}
+function elementStateProxy(stateName, targetStates) {
+  const state = this.states[stateName];
+  if (this.style) {
+    if (stateName === "emphasis") {
+      return createEmphasisDefaultState(this, stateName, targetStates, state);
+    } else if (stateName === "blur") {
+      return createBlurDefaultState(this, stateName, state);
+    } else if (stateName === "select") {
+      return createSelectDefaultState(this, stateName, state);
+    }
+  }
+  return state;
+}
+function setDefaultStateProxy(el) {
+  el.stateProxy = elementStateProxy;
+  const textContent = el.getTextContent();
+  const textGuide = el.getTextGuideLine();
+  if (textContent) {
+    textContent.stateProxy = elementStateProxy;
+  }
+  if (textGuide) {
+    textGuide.stateProxy = elementStateProxy;
+  }
+}
+function enterEmphasisWhenMouseOver(el, e) {
+  !shouldSilent(el, e) && !el.__highByOuter && traverseUpdateState(el, singleEnterEmphasis);
+}
+function leaveEmphasisWhenMouseOut(el, e) {
+  !shouldSilent(el, e) && !el.__highByOuter && traverseUpdateState(el, singleLeaveEmphasis);
+}
+function enterEmphasis(el, highlightDigit) {
+  el.__highByOuter |= 1 << (highlightDigit || 0);
+  traverseUpdateState(el, singleEnterEmphasis);
+}
+function leaveEmphasis(el, highlightDigit) {
+  !(el.__highByOuter &= ~(1 << (highlightDigit || 0))) && traverseUpdateState(el, singleLeaveEmphasis);
+}
+function enterBlur(el) {
+  traverseUpdateState(el, singleEnterBlur);
+}
+function leaveBlur(el) {
+  traverseUpdateState(el, singleLeaveBlur);
+}
+function enterSelect(el) {
+  traverseUpdateState(el, singleEnterSelect);
+}
+function leaveSelect(el) {
+  traverseUpdateState(el, singleLeaveSelect);
+}
+function shouldSilent(el, e) {
+  return el.__highDownSilentOnTouch && e.zrByTouch;
+}
+function allLeaveBlur(ecIns) {
+  const model65 = ecIns.getModel();
+  model65.eachComponent(function(componentType, componentModel) {
+    const view = componentType === "series" ? ecIns.getViewOfSeriesModel(componentModel) : ecIns.getViewOfComponentModel(componentModel);
+    view.group.traverse(function(child) {
+      singleLeaveBlur(child);
+    });
+  });
+}
+function toggleSeriesBlurState(targetSeriesIndex, focus, blurScope, ecIns, isBlur) {
+  const ecModel = ecIns.getModel();
+  blurScope = blurScope || "coordinateSystem";
+  function leaveBlurOfIndices(data, dataIndices) {
+    for (let i = 0; i < dataIndices.length; i++) {
+      const itemEl = data.getItemGraphicEl(dataIndices[i]);
+      itemEl && leaveBlur(itemEl);
+    }
+  }
+  if (!isBlur) {
+    allLeaveBlur(ecIns);
+    return;
+  }
+  if (targetSeriesIndex == null) {
+    return;
+  }
+  if (!focus || focus === "none") {
+    return;
+  }
+  const targetSeriesModel = ecModel.getSeriesByIndex(targetSeriesIndex);
+  let targetCoordSys = targetSeriesModel.coordinateSystem;
+  if (targetCoordSys && targetCoordSys.master) {
+    targetCoordSys = targetCoordSys.master;
+  }
+  const blurredSeries = [];
+  ecModel.eachSeries(function(seriesModel) {
+    const sameSeries = targetSeriesModel === seriesModel;
+    let coordSys = seriesModel.coordinateSystem;
+    if (coordSys && coordSys.master) {
+      coordSys = coordSys.master;
+    }
+    const sameCoordSys = coordSys && targetCoordSys ? coordSys === targetCoordSys : sameSeries;
+    if (!(blurScope === "series" && !sameSeries || blurScope === "coordinateSystem" && !sameCoordSys || focus === "series" && sameSeries)) {
+      const view = ecIns.getViewOfSeriesModel(seriesModel);
+      view.group.traverse(function(child) {
+        singleEnterBlur(child);
+      });
+      if (isArrayLike(focus)) {
+        leaveBlurOfIndices(seriesModel.getData(), focus);
+      } else if (isObject(focus)) {
+        const dataTypes = keys(focus);
+        for (let d = 0; d < dataTypes.length; d++) {
+          leaveBlurOfIndices(seriesModel.getData(dataTypes[d]), focus[dataTypes[d]]);
+        }
+      }
+      blurredSeries.push(seriesModel);
+    }
+  });
+  ecModel.eachComponent(function(componentType, componentModel) {
+    if (componentType === "series") {
+      return;
+    }
+    const view = ecIns.getViewOfComponentModel(componentModel);
+    if (view && view.blurSeries) {
+      view.blurSeries(blurredSeries, ecModel);
+    }
+  });
+}
+function toggleSeriesBlurStateFromPayload(seriesModel, payload, ecIns) {
+  if (!isHighDownPayload(payload)) {
+    return;
+  }
+  const isHighlight = payload.type === HIGHLIGHT_ACTION_TYPE;
+  const seriesIndex = seriesModel.seriesIndex;
+  const data = seriesModel.getData(payload.dataType);
+  let dataIndex = queryDataIndex(data, payload);
+  dataIndex = (isArray(dataIndex) ? dataIndex[0] : dataIndex) || 0;
+  let el = data.getItemGraphicEl(dataIndex);
+  if (!el) {
+    const count2 = data.count();
+    let current = 0;
+    while (!el && current < count2) {
+      el = data.getItemGraphicEl(current++);
+    }
+  }
+  if (el) {
+    const ecData29 = getECData(el);
+    toggleSeriesBlurState(seriesIndex, ecData29.focus, ecData29.blurScope, ecIns, isHighlight);
+  } else {
+    const focus = seriesModel.get(["emphasis", "focus"]);
+    const blurScope = seriesModel.get(["emphasis", "blurScope"]);
+    if (focus != null) {
+      toggleSeriesBlurState(seriesIndex, focus, blurScope, ecIns, isHighlight);
+    }
+  }
+}
+function toggleSelectionFromPayload(seriesModel, payload, ecIns) {
+  if (!isSelectChangePayload(payload)) {
+    return;
+  }
+  const dataType = payload.dataType;
+  const data = seriesModel.getData(dataType);
+  let dataIndex = queryDataIndex(data, payload);
+  if (!isArray(dataIndex)) {
+    dataIndex = [dataIndex];
+  }
+  seriesModel[payload.type === TOGGLE_SELECT_ACTION_TYPE ? "toggleSelect" : payload.type === SELECT_ACTION_TYPE ? "select" : "unselect"](dataIndex, dataType);
+}
+function updateSeriesElementSelection(seriesModel) {
+  const allData = seriesModel.getAllData();
+  each(allData, function({data, type}) {
+    data.eachItemGraphicEl(function(el, idx) {
+      seriesModel.isSelected(idx, type) ? enterSelect(el) : leaveSelect(el);
+    });
+  });
+}
+function getAllSelectedIndices(ecModel) {
+  const ret = [];
+  ecModel.eachSeries(function(seriesModel) {
+    const allData = seriesModel.getAllData();
+    each(allData, function({data, type}) {
+      const dataIndices = seriesModel.getSelectedDataIndices();
+      if (dataIndices.length > 0) {
+        const item = {
+          dataIndex: dataIndices,
+          seriesIndex: seriesModel.seriesIndex
+        };
+        if (type != null) {
+          item.dataType = type;
+        }
+        ret.push(item);
+      }
+    });
+  });
+  return ret;
+}
+function enableHoverEmphasis(el, focus, blurScope) {
+  setAsHighDownDispatcher(el, true);
+  traverseUpdateState(el, setDefaultStateProxy);
+  enableHoverFocus(el, focus, blurScope);
+}
+function enableHoverFocus(el, focus, blurScope) {
+  if (focus != null) {
+    const ecData29 = getECData(el);
+    ecData29.focus = focus;
+    ecData29.blurScope = blurScope;
+  }
+}
+const OTHER_STATES = ["emphasis", "blur", "select"];
+const styleGetterMap = {
+  itemStyle: "getItemStyle",
+  lineStyle: "getLineStyle",
+  areaStyle: "getAreaStyle"
+};
+function setStatesStylesFromModel(el, itemModel, styleType, getterType) {
+  styleType = styleType || "itemStyle";
+  for (let i = 0; i < OTHER_STATES.length; i++) {
+    const stateName = OTHER_STATES[i];
+    const model65 = itemModel.getModel([stateName, styleType]);
+    const state = el.ensureState(stateName);
+    state.style = model65[getterType || styleGetterMap[styleType]]();
+  }
+}
+function setAsHighDownDispatcher(el, asDispatcher) {
+  const disable = asDispatcher === false;
+  const extendedEl = el;
+  if (el.highDownSilentOnTouch) {
+    extendedEl.__highDownSilentOnTouch = el.highDownSilentOnTouch;
+  }
+  if (!disable || extendedEl.__highDownDispatcher) {
+    extendedEl.__highByOuter = extendedEl.__highByOuter || 0;
+    extendedEl.__highDownDispatcher = !disable;
+  }
+}
+function isHighDownDispatcher(el) {
+  return !!(el && el.__highDownDispatcher);
+}
+function getHighlightDigit(highlightKey) {
+  let highlightDigit = _highlightKeyMap[highlightKey];
+  if (highlightDigit == null && _highlightNextDigit <= 32) {
+    highlightDigit = _highlightKeyMap[highlightKey] = _highlightNextDigit++;
+  }
+  return highlightDigit;
+}
+function isSelectChangePayload(payload) {
+  const payloadType = payload.type;
+  return payloadType === SELECT_ACTION_TYPE || payloadType === UNSELECT_ACTION_TYPE || payloadType === TOGGLE_SELECT_ACTION_TYPE;
+}
+function isHighDownPayload(payload) {
+  const payloadType = payload.type;
+  return payloadType === HIGHLIGHT_ACTION_TYPE || payloadType === DOWNPLAY_ACTION_TYPE;
+}
+function savePathStates(el) {
+  const store = getSavedStates(el);
+  store.normalFill = el.style.fill;
+  store.normalStroke = el.style.stroke;
+  const selectState = el.states.select || {};
+  store.selectFill = selectState.style && selectState.style.fill || null;
+  store.selectStroke = selectState.style && selectState.style.stroke || null;
+}
+
+// src/util/log.ts
+const storedLogs = {};
+function deprecateLog(str) {
+  if ('_DEV_') {
+    if (storedLogs[str]) {
+      return;
+    }
+    if (typeof console !== "undefined" && console.warn) {
+      storedLogs[str] = true;
+      console.warn("[ECharts] DEPRECATED: " + str);
+    }
+  }
+}
+function deprecateReplaceLog(oldOpt, newOpt, scope) {
+  if ('_DEV_') {
+    deprecateLog((scope ? `[${scope}]` : "") + `${oldOpt} is deprecated, use ${newOpt} instead.`);
+  }
+}
+
+// src/label/labelStyle.ts
+const EMPTY_OBJ = {};
+function getLabelText(opt, stateModels, overrideValue) {
+  const labelFetcher = opt.labelFetcher;
+  const labelDataIndex = opt.labelDataIndex;
+  const labelDimIndex = opt.labelDimIndex;
+  const normalModel = stateModels.normal;
+  let baseText;
+  if (labelFetcher) {
+    baseText = labelFetcher.getFormattedLabel(labelDataIndex, "normal", null, labelDimIndex, normalModel && normalModel.get("formatter"), overrideValue != null ? {
+      value: overrideValue
+    } : null);
+  }
+  if (baseText == null) {
+    baseText = isFunction(opt.defaultText) ? opt.defaultText(labelDataIndex, opt) : opt.defaultText;
+  }
+  const statesText = {
+    normal: baseText
+  };
+  for (let i = 0; i < SPECIAL_STATES.length; i++) {
+    const stateName = SPECIAL_STATES[i];
+    const stateModel = stateModels[stateName];
+    statesText[stateName] = retrieve2(labelFetcher ? labelFetcher.getFormattedLabel(labelDataIndex, stateName, null, labelDimIndex, stateModel && stateModel.get("formatter")) : null, baseText);
+  }
+  return statesText;
+}
+function setLabelStyle(targetEl, labelStatesModels, opt, stateSpecified) {
+  opt = opt || EMPTY_OBJ;
+  const isSetOnText = targetEl instanceof Text_default;
+  let needsCreateText = false;
+  for (let i = 0; i < DISPLAY_STATES.length; i++) {
+    const stateModel = labelStatesModels[DISPLAY_STATES[i]];
+    if (stateModel && stateModel.getShallow("show")) {
+      needsCreateText = true;
+      break;
+    }
+  }
+  let textContent = isSetOnText ? targetEl : null;
+  if (needsCreateText) {
+    if (!isSetOnText) {
+      textContent = targetEl.getTextContent();
+      if (!textContent) {
+        textContent = new Text_default();
+        targetEl.setTextContent(textContent);
+      }
+      if (targetEl.stateProxy) {
+        textContent.stateProxy = targetEl.stateProxy;
+      }
+    }
+    const labelStatesTexts = getLabelText(opt, labelStatesModels);
+    const normalModel = labelStatesModels.normal;
+    const showNormal = normalModel.getShallow("show");
+    const normalStyle = createTextStyle(normalModel, stateSpecified && stateSpecified.normal, opt, false, !isSetOnText);
+    normalStyle.text = labelStatesTexts.normal;
+    if (!isSetOnText) {
+      targetEl.setTextConfig(createTextConfig(normalModel, opt, false));
+    }
+    for (let i = 0; i < SPECIAL_STATES.length; i++) {
+      const stateName = SPECIAL_STATES[i];
+      const stateModel = labelStatesModels[stateName];
+      if (stateModel) {
+        const stateObj = textContent.ensureState(stateName);
+        stateObj.ignore = !retrieve2(stateModel.getShallow("show"), showNormal);
+        stateObj.style = createTextStyle(stateModel, stateSpecified && stateSpecified[stateName], opt, true, !isSetOnText);
+        stateObj.style.text = labelStatesTexts[stateName];
+        if (!isSetOnText) {
+          const targetElEmphasisState = targetEl.ensureState(stateName);
+          targetElEmphasisState.textConfig = createTextConfig(stateModel, opt, true);
+        }
+      }
+    }
+    textContent.silent = !!normalModel.getShallow("silent");
+    if (textContent.style.x != null) {
+      normalStyle.x = textContent.style.x;
+    }
+    if (textContent.style.y != null) {
+      normalStyle.y = textContent.style.y;
+    }
+    textContent.ignore = !showNormal;
+    textContent.useStyle(normalStyle);
+    textContent.dirty();
+  } else if (textContent) {
+    textContent.ignore = true;
+  }
+  targetEl.dirty();
+}
+function getLabelStatesModels(itemModel, labelName) {
+  labelName = labelName || "label";
+  const statesModels = {
+    normal: itemModel.getModel(labelName)
+  };
+  for (let i = 0; i < SPECIAL_STATES.length; i++) {
+    const stateName = SPECIAL_STATES[i];
+    statesModels[stateName] = itemModel.getModel([stateName, labelName]);
+  }
+  return statesModels;
+}
+function createTextStyle(textStyleModel, specifiedTextStyle, opt, isNotNormal, isAttached) {
+  const textStyle2 = {};
+  setTextStyleCommon(textStyle2, textStyleModel, opt, isNotNormal, isAttached);
+  specifiedTextStyle && extend(textStyle2, specifiedTextStyle);
+  return textStyle2;
+}
+function createTextConfig(textStyleModel, opt, isNotNormal) {
+  opt = opt || {};
+  const textConfig = {};
+  let labelPosition;
+  let labelRotate = textStyleModel.getShallow("rotate");
+  const labelDistance = retrieve2(textStyleModel.getShallow("distance"), isNotNormal ? null : 5);
+  const labelOffset = textStyleModel.getShallow("offset");
+  labelPosition = textStyleModel.getShallow("position") || (isNotNormal ? null : "inside");
+  labelPosition === "outside" && (labelPosition = opt.defaultOutsidePosition || "top");
+  if (labelPosition != null) {
+    textConfig.position = labelPosition;
+  }
+  if (labelOffset != null) {
+    textConfig.offset = labelOffset;
+  }
+  if (labelRotate != null) {
+    labelRotate *= Math.PI / 180;
+    textConfig.rotation = labelRotate;
+  }
+  if (labelDistance != null) {
+    textConfig.distance = labelDistance;
+  }
+  textConfig.outsideFill = textStyleModel.get("color") === "inherit" ? opt.inheritColor || null : "auto";
+  return textConfig;
+}
+function setTextStyleCommon(textStyle2, textStyleModel, opt, isNotNormal, isAttached) {
+  opt = opt || EMPTY_OBJ;
+  const ecModel = textStyleModel.ecModel;
+  const globalTextStyle = ecModel && ecModel.option.textStyle;
+  const richItemNames = getRichItemNames(textStyleModel);
+  let richResult;
+  if (richItemNames) {
+    richResult = {};
+    for (const name in richItemNames) {
+      if (richItemNames.hasOwnProperty(name)) {
+        const richTextStyle = textStyleModel.getModel(["rich", name]);
+        setTokenTextStyle(richResult[name] = {}, richTextStyle, globalTextStyle, opt, isNotNormal, isAttached);
+      }
+    }
+  }
+  if (richResult) {
+    textStyle2.rich = richResult;
+  }
+  const overflow = textStyleModel.get("overflow");
+  if (overflow) {
+    textStyle2.overflow = overflow;
+  }
+  const margin = textStyleModel.get("minMargin");
+  if (margin != null) {
+    textStyle2.margin = margin;
+  }
+  setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isNotNormal, isAttached, true);
+}
+function getRichItemNames(textStyleModel) {
+  let richItemNameMap;
+  while (textStyleModel && textStyleModel !== textStyleModel.ecModel) {
+    const rich = (textStyleModel.option || EMPTY_OBJ).rich;
+    if (rich) {
+      richItemNameMap = richItemNameMap || {};
+      const richKeys = keys(rich);
+      for (let i = 0; i < richKeys.length; i++) {
+        const richKey = richKeys[i];
+        richItemNameMap[richKey] = 1;
+      }
+    }
+    textStyleModel = textStyleModel.parentModel;
+  }
+  return richItemNameMap;
+}
+const TEXT_PROPS_WITH_GLOBAL = ["fontStyle", "fontWeight", "fontSize", "fontFamily", "opacity", "textShadowColor", "textShadowBlur", "textShadowOffsetX", "textShadowOffsetY"];
+const TEXT_PROPS_SELF = ["align", "lineHeight", "width", "height", "tag", "verticalAlign"];
+const TEXT_PROPS_BOX = ["padding", "borderWidth", "borderRadius", "backgroundColor", "borderColor", "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY"];
+function setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isNotNormal, isAttached, isBlock) {
+  globalTextStyle = !isNotNormal && globalTextStyle || EMPTY_OBJ;
+  const inheritColor = opt && opt.inheritColor;
+  let fillColor = textStyleModel.getShallow("color");
+  let strokeColor = textStyleModel.getShallow("textBorderColor");
+  if (fillColor === "inherit" || fillColor === "auto") {
+    if ('_DEV_') {
+      if (fillColor === "auto") {
+        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
+      }
+    }
+    if (inheritColor) {
+      fillColor = inheritColor;
+    } else {
+      fillColor = null;
+    }
+  }
+  if (strokeColor === "inherit" || strokeColor === "auto") {
+    if ('_DEV_') {
+      if (strokeColor === "auto") {
+        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
+      }
+    }
+    if (inheritColor) {
+      strokeColor = inheritColor;
+    } else {
+      strokeColor = null;
+    }
+  }
+  fillColor = fillColor || globalTextStyle.color;
+  strokeColor = strokeColor || globalTextStyle.textBorderColor;
+  if (fillColor != null) {
+    textStyle2.fill = fillColor;
+  }
+  if (strokeColor != null) {
+    textStyle2.stroke = strokeColor;
+  }
+  const lineWidth = retrieve2(textStyleModel.getShallow("textBorderWidth"), globalTextStyle.textBorderWidth);
+  if (lineWidth != null) {
+    textStyle2.lineWidth = lineWidth;
+  }
+  if (!isNotNormal && !isAttached) {
+    if (textStyle2.fill == null && opt.inheritColor) {
+      textStyle2.fill = opt.inheritColor;
+    }
+  }
+  for (let i = 0; i < TEXT_PROPS_WITH_GLOBAL.length; i++) {
+    const key = TEXT_PROPS_WITH_GLOBAL[i];
+    const val = retrieve2(textStyleModel.getShallow(key), globalTextStyle[key]);
+    if (val != null) {
+      textStyle2[key] = val;
+    }
+  }
+  for (let i = 0; i < TEXT_PROPS_SELF.length; i++) {
+    const key = TEXT_PROPS_SELF[i];
+    const val = textStyleModel.getShallow(key);
+    if (val != null) {
+      textStyle2[key] = val;
+    }
+  }
+  if (textStyle2.verticalAlign == null) {
+    const baseline = textStyleModel.getShallow("baseline");
+    if (baseline != null) {
+      textStyle2.verticalAlign = baseline;
+    }
+  }
+  if (!isBlock || !opt.disableBox) {
+    for (let i = 0; i < TEXT_PROPS_BOX.length; i++) {
+      const key = TEXT_PROPS_BOX[i];
+      const val = textStyleModel.getShallow(key);
+      if (val != null) {
+        textStyle2[key] = val;
+      }
+    }
+    if ((textStyle2.backgroundColor === "auto" || textStyle2.backgroundColor === "inherit") && inheritColor) {
+      if ('_DEV_') {
+        if (textStyle2.backgroundColor === "auto") {
+          deprecateReplaceLog("backgroundColor: 'auto'", "backgroundColor: 'inherit'");
+        }
+      }
+      textStyle2.backgroundColor = inheritColor;
+    }
+    if ((textStyle2.borderColor === "auto" || textStyle2.borderColor === "inherit") && inheritColor) {
+      if ('_DEV_') {
+        if (textStyle2.borderColor === "auto") {
+          deprecateReplaceLog("borderColor: 'auto'", "borderColor: 'inherit'");
+        }
+      }
+      textStyle2.borderColor = inheritColor;
+    }
+  }
+}
+function getFont(opt, ecModel) {
+  const gTextStyleModel = ecModel && ecModel.getModel("textStyle");
+  return trim([opt.fontStyle || gTextStyleModel && gTextStyleModel.getShallow("fontStyle") || "", opt.fontWeight || gTextStyleModel && gTextStyleModel.getShallow("fontWeight") || "", (opt.fontSize || gTextStyleModel && gTextStyleModel.getShallow("fontSize") || 12) + "px", opt.fontFamily || gTextStyleModel && gTextStyleModel.getShallow("fontFamily") || "sans-serif"].join(" "));
+}
+
+// src/model/mixin/textStyle.ts
+const PATH_COLOR = ["textStyle", "color"];
+const tmpRichText = new Text_default();
+class TextStyleMixin {
+  getTextColor(isEmphasis) {
+    const ecModel = this.ecModel;
+    return this.getShallow("color") || (!isEmphasis && ecModel ? ecModel.get(PATH_COLOR) : null);
+  }
+  getFont() {
+    return getFont({
+      fontStyle: this.getShallow("fontStyle"),
+      fontWeight: this.getShallow("fontWeight"),
+      fontSize: this.getShallow("fontSize"),
+      fontFamily: this.getShallow("fontFamily")
+    }, this.ecModel);
+  }
+  getTextRect(text11) {
+    tmpRichText.useStyle({
+      text: text11,
+      fontStyle: this.getShallow("fontStyle"),
+      fontWeight: this.getShallow("fontWeight"),
+      fontSize: this.getShallow("fontSize"),
+      fontFamily: this.getShallow("fontFamily"),
+      verticalAlign: this.getShallow("verticalAlign") || this.getShallow("baseline"),
+      padding: this.getShallow("padding"),
+      lineHeight: this.getShallow("lineHeight"),
+      rich: this.getShallow("rich")
+    });
+    tmpRichText.update();
+    return tmpRichText.getBoundingRect();
+  }
+}
+const textStyle_default = TextStyleMixin;
+
+// src/model/mixin/lineStyle.ts
+const LINE_STYLE_KEY_MAP = [["lineWidth", "width"], ["stroke", "color"], ["opacity"], ["shadowBlur"], ["shadowOffsetX"], ["shadowOffsetY"], ["shadowColor"]];
+const getLineStyle = makeStyleMapper_default(LINE_STYLE_KEY_MAP);
+class LineStyleMixin {
+  getLineStyle(excludes) {
+    const style2 = getLineStyle(this, excludes);
+    style2.lineDash = this.getLineDash(style2.lineWidth);
+    return style2;
+  }
+  getLineDash(lineWidth) {
+    if (lineWidth == null) {
+      lineWidth = 1;
+    }
+    const lineType = this.get("type");
+    const dotSize = Math.max(lineWidth, 2);
+    const dashSize = lineWidth * 4;
+    return lineType === "solid" || lineType == null ? false : lineType === "dashed" ? [dashSize, dashSize] : [dotSize, dotSize];
+  }
+}
+
+// src/model/mixin/itemStyle.ts
+const ITEM_STYLE_KEY_MAP = [["fill", "color"], ["stroke", "borderColor"], ["lineWidth", "borderWidth"], ["opacity"], ["shadowBlur"], ["shadowOffsetX"], ["shadowOffsetY"], ["shadowColor"]];
+const getItemStyle = makeStyleMapper_default(ITEM_STYLE_KEY_MAP);
+class ItemStyleMixin {
+  getItemStyle(excludes, includes) {
+    const style2 = getItemStyle(this, excludes, includes);
+    const lineDash = this.getBorderLineDash();
+    lineDash && (style2.lineDash = lineDash);
+    return style2;
+  }
+  getBorderLineDash() {
+    const lineType = this.get("borderType");
+    return lineType === "solid" || lineType == null ? null : lineType === "dashed" ? [5, 5] : [1, 1];
+  }
+}
+
+// src/model/Model.ts
+class Model108 {
+  constructor(option, parentModel, ecModel) {
+    this.parentModel = parentModel;
+    this.ecModel = ecModel;
+    this.option = option;
+  }
+  init(option, parentModel, ecModel, ...rest) {
+  }
+  mergeOption(option, ecModel) {
+    merge(this.option, option, true);
+  }
+  get(path2, ignoreParent) {
+    if (path2 == null) {
+      return this.option;
+    }
+    return this._doGet(this.parsePath(path2), !ignoreParent && this.parentModel);
+  }
+  getShallow(key, ignoreParent) {
+    const option = this.option;
+    let val = option == null ? option : option[key];
+    if (val == null && !ignoreParent) {
+      const parentModel = this.parentModel;
+      if (parentModel) {
+        val = parentModel.getShallow(key);
+      }
+    }
+    return val;
+  }
+  getModel(path2, parentModel) {
+    const hasPath = path2 != null;
+    const pathFinal = hasPath ? this.parsePath(path2) : null;
+    const obj = hasPath ? this._doGet(pathFinal) : this.option;
+    parentModel = parentModel || this.parentModel && this.parentModel.getModel(this.resolveParentPath(pathFinal));
+    return new Model108(obj, parentModel, this.ecModel);
+  }
+  isEmpty() {
+    return this.option == null;
+  }
+  restoreData() {
+  }
+  clone() {
+    const Ctor = this.constructor;
+    return new Ctor(clone2(this.option));
+  }
+  parsePath(path2) {
+    if (typeof path2 === "string") {
+      return path2.split(".");
+    }
+    return path2;
+  }
+  resolveParentPath(path2) {
+    return path2;
+  }
+  isAnimationEnabled() {
+    if (!env_default.node && this.option) {
+      if (this.option.animation != null) {
+        return !!this.option.animation;
+      } else if (this.parentModel) {
+        return this.parentModel.isAnimationEnabled();
+      }
+    }
+  }
+  _doGet(pathArr, parentModel) {
+    let obj = this.option;
+    if (!pathArr) {
+      return obj;
+    }
+    for (let i = 0; i < pathArr.length; i++) {
+      if (!pathArr[i]) {
+        continue;
+      }
+      obj = obj && typeof obj === "object" ? obj[pathArr[i]] : null;
+      if (obj == null) {
+        break;
+      }
+    }
+    if (obj == null && parentModel) {
+      obj = parentModel._doGet(this.resolveParentPath(pathArr), parentModel.parentModel);
+    }
+    return obj;
+  }
+}
+enableClassExtend(Model108);
+enableClassCheck(Model108);
+mixin(Model108, LineStyleMixin);
+mixin(Model108, ItemStyleMixin);
+mixin(Model108, AreaStyleMixin);
+mixin(Model108, textStyle_default);
+const Model_default = Model108;
+
+// src/util/component.ts
+let base = Math.round(Math.random() * 10);
+function getUID(type) {
+  return [type || "", base++].join("_");
+}
+function enableSubTypeDefaulter(target) {
+  const subTypeDefaulters = {};
+  target.registerSubTypeDefaulter = function(componentType, defaulter) {
+    const componentTypeInfo = parseClassType(componentType);
+    subTypeDefaulters[componentTypeInfo.main] = defaulter;
+  };
+  target.determineSubType = function(componentType, option) {
+    let type = option.type;
+    if (!type) {
+      const componentTypeMain = parseClassType(componentType).main;
+      if (target.hasSubTypes(componentType) && subTypeDefaulters[componentTypeMain]) {
+        type = subTypeDefaulters[componentTypeMain](option);
+      }
+    }
+    return type;
+  };
+}
+function enableTopologicalTravel(entity, dependencyGetter) {
+  entity.topologicalTravel = function(targetNameList, fullNameList, callback, context) {
+    if (!targetNameList.length) {
+      return;
+    }
+    const result = makeDepndencyGraph(fullNameList);
+    const graph2 = result.graph;
+    const stack = result.noEntryList;
+    const targetNameSet = {};
+    each(targetNameList, function(name) {
+      targetNameSet[name] = true;
+    });
+    while (stack.length) {
+      const currComponentType = stack.pop();
+      const currVertex = graph2[currComponentType];
+      const isInTargetNameSet = !!targetNameSet[currComponentType];
+      if (isInTargetNameSet) {
+        callback.call(context, currComponentType, currVertex.originalDeps.slice());
+        delete targetNameSet[currComponentType];
+      }
+      each(currVertex.successor, isInTargetNameSet ? removeEdgeAndAdd : removeEdge);
+    }
+    each(targetNameSet, function() {
+      throw new Error("Circle dependency may exists");
+    });
+    function removeEdge(succComponentType) {
+      graph2[succComponentType].entryCount--;
+      if (graph2[succComponentType].entryCount === 0) {
+        stack.push(succComponentType);
+      }
+    }
+    function removeEdgeAndAdd(succComponentType) {
+      targetNameSet[succComponentType] = true;
+      removeEdge(succComponentType);
+    }
+  };
+  function makeDepndencyGraph(fullNameList) {
+    const graph2 = {};
+    const noEntryList = [];
+    each(fullNameList, function(name) {
+      const thisItem = createDependencyGraphItem(graph2, name);
+      const originalDeps = thisItem.originalDeps = dependencyGetter(name);
+      const availableDeps = getAvailableDependencies(originalDeps, fullNameList);
+      thisItem.entryCount = availableDeps.length;
+      if (thisItem.entryCount === 0) {
+        noEntryList.push(name);
+      }
+      each(availableDeps, function(dependentName) {
+        if (indexOf(thisItem.predecessor, dependentName) < 0) {
+          thisItem.predecessor.push(dependentName);
+        }
+        const thatItem = createDependencyGraphItem(graph2, dependentName);
+        if (indexOf(thatItem.successor, dependentName) < 0) {
+          thatItem.successor.push(name);
+        }
+      });
+    });
+    return {
+      graph: graph2,
+      noEntryList
+    };
+  }
+  function createDependencyGraphItem(graph2, name) {
+    if (!graph2[name]) {
+      graph2[name] = {
+        predecessor: [],
+        successor: []
+      };
+    }
+    return graph2[name];
+  }
+  function getAvailableDependencies(originalDeps, fullNameList) {
+    const availableDeps = [];
+    each(originalDeps, function(dep) {
+      indexOf(fullNameList, dep) >= 0 && availableDeps.push(dep);
+    });
+    return availableDeps;
+  }
+}
+function inheritDefaultOption(superOption, subOption) {
+  return merge(merge({}, superOption, true), subOption, true);
+}
+
+// src/lang.ts
+const lang_default = {
+  time: {
+    month: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
+    monthAbbr: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+    dayOfWeek: ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"],
+    dayOfWeekAbbr: ["日", "一", "二", "三", "四", "五", "六"]
+  },
+  legend: {
+    selector: {
+      all: "全选",
+      inverse: "反选"
+    }
+  },
+  toolbox: {
+    brush: {
+      title: {
+        rect: "矩形选择",
+        polygon: "圈选",
+        lineX: "横向选择",
+        lineY: "纵向选择",
+        keep: "保持选择",
+        clear: "清除选择"
+      }
+    },
+    dataView: {
+      title: "数据视图",
+      lang: ["数据视图", "关闭", "刷新"]
+    },
+    dataZoom: {
+      title: {
+        zoom: "区域缩放",
+        back: "区域缩放还原"
+      }
+    },
+    magicType: {
+      title: {
+        line: "切换为折线图",
+        bar: "切换为柱状图",
+        stack: "切换为堆叠",
+        tiled: "切换为平铺"
+      }
+    },
+    restore: {
+      title: "还原"
+    },
+    saveAsImage: {
+      title: "保存为图片",
+      lang: ["右键另存为图片"]
+    }
+  },
+  series: {
+    typeNames: {
+      pie: "饼图",
+      bar: "柱状图",
+      line: "折线图",
+      scatter: "散点图",
+      effectScatter: "涟漪散点图",
+      radar: "雷达图",
+      tree: "树图",
+      treemap: "矩形树图",
+      boxplot: "箱型图",
+      candlestick: "K线图",
+      k: "K线图",
+      heatmap: "热力图",
+      map: "地图",
+      parallel: "平行坐标图",
+      lines: "线图",
+      graph: "关系图",
+      sankey: "桑基图",
+      funnel: "漏斗图",
+      gauge: "仪表盘图",
+      pictorialBar: "象形柱图",
+      themeRiver: "主题河流图",
+      sunburst: "旭日图"
+    }
+  },
+  aria: {
+    general: {
+      withTitle: "这是一个关于“{title}”的图表。",
+      withoutTitle: "这是一个图表，"
+    },
+    series: {
+      single: {
+        prefix: "",
+        withName: "图表类型是{seriesType}，表示{seriesName}。",
+        withoutName: "图表类型是{seriesType}。"
+      },
+      multiple: {
+        prefix: "它由{seriesCount}个图表系列组成。",
+        withName: "第{seriesId}个系列是一个表示{seriesName}的{seriesType}，",
+        withoutName: "第{seriesId}个系列是一个{seriesType}，",
+        separator: {
+          middle: "；",
+          end: "。"
+        }
+      }
+    },
+    data: {
+      allData: "其数据是——",
+      partialData: "其中，前{displayCnt}项是——",
+      withName: "{name}的数据是{value}",
+      withoutName: "{value}",
+      separator: {
+        middle: "，",
+        end: ""
+      }
+    }
+  }
+};
+
+// src/util/time.ts
+const time_exports = {};
+__export(time_exports, {
+  ONE_DAY: () => ONE_DAY,
+  ONE_HOUR: () => ONE_HOUR,
+  ONE_MINUTE: () => ONE_MINUTE,
+  ONE_SECOND: () => ONE_SECOND,
+  ONE_YEAR: () => ONE_YEAR,
+  defaultLeveledFormatter: () => defaultLeveledFormatter,
+  format: () => format16,
+  fullLeveledFormatter: () => fullLeveledFormatter,
+  getDateFromStr: () => getDateFromStr,
+  getDefaultFormatPrecisionOfInterval: () => getDefaultFormatPrecisionOfInterval,
+  getPrimaryTimeUnit: () => getPrimaryTimeUnit,
+  getUnitFromValue: () => getUnitFromValue,
+  getUnitValue: () => getUnitValue,
+  isPrimaryTimeUnit: () => isPrimaryTimeUnit,
+  leveledFormat: () => leveledFormat,
+  primaryTimeUnits: () => primaryTimeUnits,
+  timeUnits: () => timeUnits
+});
+const ONE_SECOND = 1000;
+const ONE_MINUTE = ONE_SECOND * 60;
+const ONE_HOUR = ONE_MINUTE * 60;
+const ONE_DAY = ONE_HOUR * 24;
+const ONE_YEAR = ONE_DAY * 365;
+const defaultLeveledFormatter = {
+  year: "{yyyy}",
+  month: "{MMM}",
+  day: "{d}",
+  hour: "{HH}:{mm}",
+  minute: "{HH}:{mm}",
+  second: "{HH}:{mm}:{ss}",
+  millisecond: "{hh}:{mm}:{ss} {SSS}",
+  none: "{yyyy}-{MM}-{dd} {hh}:{mm}:{ss} {SSS}"
+};
+const fullDayFormatter = "{yyyy}-{MM}-{dd}";
+const fullLeveledFormatter = {
+  year: "{yyyy}",
+  month: "{yyyy}:{MM}",
+  day: fullDayFormatter,
+  hour: fullDayFormatter + " " + defaultLeveledFormatter.hour,
+  minute: fullDayFormatter + " " + defaultLeveledFormatter.minute,
+  second: fullDayFormatter + " " + defaultLeveledFormatter.second,
+  millisecond: defaultLeveledFormatter.none
+};
+const primaryTimeUnits = ["year", "month", "day", "hour", "minute", "second", "millisecond"];
+const timeUnits = ["year", "half-year", "quarter", "month", "week", "half-week", "day", "half-day", "quarter-day", "hour", "minute", "second", "millisecond"];
+function getPrimaryTimeUnit(timeUnit) {
+  switch (timeUnit) {
+    case "half-year":
+    case "quarter":
+      return "month";
+    case "week":
+    case "half-week":
+      return "day";
+    case "half-day":
+    case "quarter-day":
+      return "hour";
+    default:
+      return timeUnit;
+  }
+}
+function isPrimaryTimeUnit(timeUnit) {
+  return timeUnit === getPrimaryTimeUnit(timeUnit);
+}
+function getDefaultFormatPrecisionOfInterval(timeUnit) {
+  switch (timeUnit) {
+    case "year":
+    case "month":
+      return "day";
+    case "millisecond":
+      return "millisecond";
+    default:
+      return "second";
+  }
+}
+function format16(time2, template, isUTC) {
+  const date = parseDate(time2);
+  const utc = isUTC ? "UTC" : "";
+  const y = date["get" + utc + "FullYear"]();
+  const M = date["get" + utc + "Month"]() + 1;
+  const q = Math.floor((M - 1) / 4) + 1;
+  const d = date["get" + utc + "Date"]();
+  const e = date["get" + utc + "Day"]();
+  const H = date["get" + utc + "Hours"]();
+  const h = (H - 1) % 12 + 1;
+  const m2 = date["get" + utc + "Minutes"]();
+  const s = date["get" + utc + "Seconds"]();
+  const S = date["get" + utc + "Milliseconds"]();
+  return (template || "").replace(/{yyyy}/g, y).replace(/{yy}/g, y % 100 + "").replace(/{Q}/g, q + "").replace(/{MMMM}/g, lang_default.time.month[M - 1]).replace(/{MMM}/g, lang_default.time.monthAbbr[M - 1]).replace(/{MM}/g, pad(M, 2)).replace(/{M}/g, M).replace(/{dd}/g, pad(d, 2)).replace(/{d}/g, d).replace(/{eeee}/g, lang_default.time.dayOfWeek[e]).replace(/{ee}/g, lang_default.time.dayOfWeekAbbr[e]).replace(/{e}/g, e).replace(/{HH}/g, pad(H, 2)).replace(/{H}/g, H).replace(/{hh}/g, pad(h + "", 2)).replace(/{h}/g, h + "").replace(/{mm}/g, pad(m2, 2)).replace(/{m}/g, m2).replace(/{ss}/g, pad(s, 2)).replace(/{s}/g, s).replace(/{SSS}/g, pad(S, 3)).replace(/{S}/g, S);
+}
+function leveledFormat(tick, idx, formatter, isUTC) {
+  let template = null;
+  if (typeof formatter === "string") {
+    template = formatter;
+  } else if (typeof formatter === "function") {
+    template = formatter(tick.value, idx, {
+      level: tick.level
+    });
+  } else {
+    const defaults2 = extend({}, defaultLeveledFormatter);
+    if (tick.level > 0) {
+      for (let i = 0; i < primaryTimeUnits.length; ++i) {
+        defaults2[primaryTimeUnits[i]] = `{primary|${defaults2[primaryTimeUnits[i]]}}`;
+      }
+    }
+    const mergedFormatter = formatter ? formatter.inherit === false ? formatter : defaults(formatter, defaults2) : defaults2;
+    const unit = getUnitFromValue(tick.value, isUTC);
+    if (mergedFormatter[unit]) {
+      template = mergedFormatter[unit];
+    } else if (mergedFormatter.inherit) {
+      const targetId = timeUnits.indexOf(unit);
+      for (let i = targetId - 1; i >= 0; --i) {
+        if (mergedFormatter[unit]) {
+          template = mergedFormatter[unit];
+          break;
+        }
+      }
+      template = template || defaults2.none;
+    }
+    if (isArray(template)) {
+      let levelId = tick.level == null ? 0 : tick.level >= 0 ? tick.level : template.length + tick.level;
+      levelId = Math.min(levelId, template.length - 1);
+      template = template[levelId];
+    }
+  }
+  return format16(new Date(tick.value), template, isUTC);
+}
+function getUnitFromValue(value, isUTC) {
+  const date = parseDate(value);
+  const utc = isUTC ? "UTC" : "";
+  const M = date["get" + utc + "Month"]() + 1;
+  const d = date["get" + utc + "Date"]();
+  const h = date["get" + utc + "Hours"]();
+  const m2 = date["get" + utc + "Minutes"]();
+  const s = date["get" + utc + "Seconds"]();
+  const S = date["get" + utc + "Milliseconds"]();
+  const isSecond = S === 0;
+  const isMinute = isSecond && s === 0;
+  const isHour = isMinute && m2 === 0;
+  const isDay = isHour && h === 0;
+  const isMonth = isDay && d === 1;
+  const isYear = isMonth && M === 1;
+  if (isYear) {
+    return "year";
+  } else if (isMonth) {
+    return "month";
+  } else if (isDay) {
+    return "day";
+  } else if (isHour) {
+    return "hour";
+  } else if (isMinute) {
+    return "minute";
+  } else if (isSecond) {
+    return "second";
+  } else {
+    return "millisecond";
+  }
+}
+function getUnitValue(value, unit, isUTC) {
+  const date = typeof value === "number" ? parseDate(value) : value;
+  unit = unit || getUnitFromValue(value, isUTC);
+  const utc = isUTC ? "UTC" : "";
+  switch (unit) {
+    case "year":
+      return date["get" + utc + "FullYear"]();
+    case "half-year":
+      return date["get" + utc + "Month"]() >= 6 ? 1 : 0;
+    case "quarter":
+      return Math.floor((date["get" + utc + "Month"]() + 1) / 4);
+    case "month":
+      return date["get" + utc + "Month"]();
+    case "day":
+      return date["get" + utc + "Date"]();
+    case "half-day":
+      return date["get" + utc + "Hours"]() / 24;
+    case "hour":
+      return date["get" + utc + "Hours"]();
+    case "minute":
+      return date["get" + utc + "Minutes"]();
+    case "second":
+      return date["get" + utc + "Seconds"]();
+    case "millisecond":
+      return date["get" + utc + "Milliseconds"]();
+  }
+}
+function getDateFromStr(date) {
+  if (!date || date instanceof Date) {
+    return date;
+  }
+  if (date.indexOf(":") < 0) {
+    return new Date(date + " 00:00:00");
+  } else {
+    return new Date(date);
+  }
+}
+
 // src/util/graphic.ts
 const graphic_exports = {};
 __export(graphic_exports, {
@@ -12293,7 +13573,6 @@ __export(graphic_exports, {
   createIcon: () => createIcon,
   extendPath: () => extendPath,
   extendShape: () => extendShape,
-  getECData: () => getECData,
   getShapeClass: () => getShapeClass,
   getTransform: () => getTransform,
   groupTransition: () => groupTransition,
@@ -12720,7 +13999,6 @@ function crossProduct2d(x1, y1, x2, y2) {
 function nearZero(val) {
   return val <= 1e-06 && val >= -1e-06;
 }
-const getECData = makeInner();
 registerShape("circle", Circle_default);
 registerShape("ellipse", Ellipse_default);
 registerShape("sector", Sector_default);
@@ -12731,975 +14009,6 @@ registerShape("rect", Rect_default);
 registerShape("line", Line_default);
 registerShape("bezierCurve", BezierCurve_default);
 registerShape("arc", Arc_default);
-
-// src/util/states.ts
-let _highlightNextDigit = 1;
-const _highlightKeyMap = {};
-const getSavedStates = makeInner();
-const HOVER_STATE_NORMAL = 0;
-const HOVER_STATE_BLUR = 1;
-const HOVER_STATE_EMPHASIS = 2;
-const SPECIAL_STATES = ["emphasis", "blur", "select"];
-const DISPLAY_STATES = ["normal", "emphasis", "blur", "select"];
-const Z2_EMPHASIS_LIFT = 10;
-const Z2_SELECT_LIFT = 9;
-const HIGHLIGHT_ACTION_TYPE = "highlight";
-const DOWNPLAY_ACTION_TYPE = "downplay";
-const SELECT_ACTION_TYPE = "select";
-const UNSELECT_ACTION_TYPE = "unselect";
-const TOGGLE_SELECT_ACTION_TYPE = "toggleSelect";
-function hasFillOrStroke(fillOrStroke) {
-  return fillOrStroke != null && fillOrStroke !== "none";
-}
-const liftedColorCache = new LRU2(100);
-function liftColor(color8) {
-  if (typeof color8 !== "string") {
-    return color8;
-  }
-  let liftedColor = liftedColorCache.get(color8);
-  if (!liftedColor) {
-    liftedColor = lift(color8, -0.1);
-    liftedColorCache.put(color8, liftedColor);
-  }
-  return liftedColor;
-}
-function doChangeHoverState(el, stateName, hoverStateEnum) {
-  if (el.onHoverStateChange) {
-    if ((el.hoverState || 0) !== hoverStateEnum) {
-      el.onHoverStateChange(stateName);
-    }
-  }
-  el.hoverState = hoverStateEnum;
-}
-function singleEnterEmphasis(el) {
-  doChangeHoverState(el, "emphasis", HOVER_STATE_EMPHASIS);
-}
-function singleLeaveEmphasis(el) {
-  doChangeHoverState(el, "normal", HOVER_STATE_NORMAL);
-}
-function singleEnterBlur(el) {
-  doChangeHoverState(el, "blur", HOVER_STATE_BLUR);
-}
-function singleLeaveBlur(el) {
-  doChangeHoverState(el, "normal", HOVER_STATE_NORMAL);
-}
-function singleEnterSelect(el) {
-  el.selected = true;
-}
-function singleLeaveSelect(el) {
-  el.selected = false;
-}
-function updateElementState(el, updater, commonParam) {
-  updater(el, commonParam);
-}
-function traverseUpdateState(el, updater, commonParam) {
-  updateElementState(el, updater, commonParam);
-  el.isGroup && el.traverse(function(child) {
-    updateElementState(child, updater, commonParam);
-  });
-}
-function setStatesFlag(el, stateName) {
-  switch (stateName) {
-    case "emphasis":
-      el.hoverState = HOVER_STATE_EMPHASIS;
-      break;
-    case "normal":
-      el.hoverState = HOVER_STATE_NORMAL;
-      break;
-    case "blur":
-      el.hoverState = HOVER_STATE_BLUR;
-      break;
-    case "select":
-      el.selected = true;
-  }
-}
-function getFromStateStyle(el, props, toStateName, defaultValue) {
-  const style2 = el.style;
-  const fromState = {};
-  for (let i = 0; i < props.length; i++) {
-    const propName = props[i];
-    const val = style2[propName];
-    fromState[propName] = val == null ? defaultValue && defaultValue[propName] : val;
-  }
-  for (let i = 0; i < el.animators.length; i++) {
-    const animator = el.animators[i];
-    if (animator.__fromStateTransition && animator.__fromStateTransition.indexOf(toStateName) < 0 && animator.targetName === "style") {
-      animator.saveFinalToTarget(fromState, props);
-    }
-  }
-  return fromState;
-}
-function createEmphasisDefaultState(el, stateName, targetStates, state) {
-  const hasSelect = targetStates && indexOf(targetStates, "select") >= 0;
-  let cloned = false;
-  if (el instanceof Path_default) {
-    const store = getSavedStates(el);
-    const fromFill = hasSelect ? store.selectFill || store.normalFill : store.normalFill;
-    const fromStroke = hasSelect ? store.selectStroke || store.normalStroke : store.normalStroke;
-    if (hasFillOrStroke(fromFill) || hasFillOrStroke(fromStroke)) {
-      state = state || {};
-      let emphasisStyle = state.style || {};
-      if (!hasFillOrStroke(emphasisStyle.fill) && hasFillOrStroke(fromFill)) {
-        cloned = true;
-        state = extend({}, state);
-        emphasisStyle = extend({}, emphasisStyle);
-        emphasisStyle.fill = liftColor(fromFill);
-      } else if (!hasFillOrStroke(emphasisStyle.stroke) && hasFillOrStroke(fromStroke)) {
-        if (!cloned) {
-          state = extend({}, state);
-          emphasisStyle = extend({}, emphasisStyle);
-        }
-        emphasisStyle.stroke = liftColor(fromStroke);
-      }
-      state.style = emphasisStyle;
-    }
-  }
-  if (state) {
-    if (state.z2 == null) {
-      if (!cloned) {
-        state = extend({}, state);
-      }
-      const z2EmphasisLift = el.z2EmphasisLift;
-      state.z2 = el.z2 + (z2EmphasisLift != null ? z2EmphasisLift : Z2_EMPHASIS_LIFT);
-    }
-  }
-  return state;
-}
-function createSelectDefaultState(el, stateName, state) {
-  if (state) {
-    if (state.z2 == null) {
-      state = extend({}, state);
-      const z2SelectLift = el.z2SelectLift;
-      state.z2 = el.z2 + (z2SelectLift != null ? z2SelectLift : Z2_SELECT_LIFT);
-    }
-  }
-  return state;
-}
-function createBlurDefaultState(el, stateName, state) {
-  const hasBlur = indexOf(el.currentStates, stateName) >= 0;
-  const currentOpacity = el.style.opacity;
-  const fromState = !hasBlur ? getFromStateStyle(el, ["opacity"], stateName, {
-    opacity: 1
-  }) : null;
-  state = state || {};
-  let blurStyle = state.style || {};
-  if (blurStyle.opacity == null) {
-    state = extend({}, state);
-    blurStyle = extend({
-      opacity: hasBlur ? currentOpacity : fromState.opacity * 0.1
-    }, blurStyle);
-    state.style = blurStyle;
-  }
-  return state;
-}
-function elementStateProxy(stateName, targetStates) {
-  const state = this.states[stateName];
-  if (this.style) {
-    if (stateName === "emphasis") {
-      return createEmphasisDefaultState(this, stateName, targetStates, state);
-    } else if (stateName === "blur") {
-      return createBlurDefaultState(this, stateName, state);
-    } else if (stateName === "select") {
-      return createSelectDefaultState(this, stateName, state);
-    }
-  }
-  return state;
-}
-function setDefaultStateProxy(el) {
-  el.stateProxy = elementStateProxy;
-  const textContent = el.getTextContent();
-  const textGuide = el.getTextGuideLine();
-  if (textContent) {
-    textContent.stateProxy = elementStateProxy;
-  }
-  if (textGuide) {
-    textGuide.stateProxy = elementStateProxy;
-  }
-}
-function enterEmphasisWhenMouseOver(el, e) {
-  !shouldSilent(el, e) && !el.__highByOuter && traverseUpdateState(el, singleEnterEmphasis);
-}
-function leaveEmphasisWhenMouseOut(el, e) {
-  !shouldSilent(el, e) && !el.__highByOuter && traverseUpdateState(el, singleLeaveEmphasis);
-}
-function enterEmphasis(el, highlightDigit) {
-  el.__highByOuter |= 1 << (highlightDigit || 0);
-  traverseUpdateState(el, singleEnterEmphasis);
-}
-function leaveEmphasis(el, highlightDigit) {
-  !(el.__highByOuter &= ~(1 << (highlightDigit || 0))) && traverseUpdateState(el, singleLeaveEmphasis);
-}
-function enterBlur(el) {
-  traverseUpdateState(el, singleEnterBlur);
-}
-function leaveBlur(el) {
-  traverseUpdateState(el, singleLeaveBlur);
-}
-function enterSelect(el) {
-  traverseUpdateState(el, singleEnterSelect);
-}
-function leaveSelect(el) {
-  traverseUpdateState(el, singleLeaveSelect);
-}
-function shouldSilent(el, e) {
-  return el.__highDownSilentOnTouch && e.zrByTouch;
-}
-function allLeaveBlur(ecIns) {
-  const model65 = ecIns.getModel();
-  model65.eachComponent(function(componentType, componentModel) {
-    const view = componentType === "series" ? ecIns.getViewOfSeriesModel(componentModel) : ecIns.getViewOfComponentModel(componentModel);
-    view.group.traverse(function(child) {
-      singleLeaveBlur(child);
-    });
-  });
-}
-function toggleSeriesBlurState(targetSeriesIndex, focus, blurScope, ecIns, isBlur) {
-  const ecModel = ecIns.getModel();
-  blurScope = blurScope || "coordinateSystem";
-  function leaveBlurOfIndices(data, dataIndices) {
-    for (let i = 0; i < dataIndices.length; i++) {
-      const itemEl = data.getItemGraphicEl(dataIndices[i]);
-      itemEl && leaveBlur(itemEl);
-    }
-  }
-  if (!isBlur) {
-    allLeaveBlur(ecIns);
-    return;
-  }
-  if (targetSeriesIndex == null) {
-    return;
-  }
-  if (!focus || focus === "none") {
-    return;
-  }
-  const targetSeriesModel = ecModel.getSeriesByIndex(targetSeriesIndex);
-  let targetCoordSys = targetSeriesModel.coordinateSystem;
-  if (targetCoordSys && targetCoordSys.master) {
-    targetCoordSys = targetCoordSys.master;
-  }
-  const blurredSeries = [];
-  ecModel.eachSeries(function(seriesModel) {
-    const sameSeries = targetSeriesModel === seriesModel;
-    let coordSys = seriesModel.coordinateSystem;
-    if (coordSys && coordSys.master) {
-      coordSys = coordSys.master;
-    }
-    const sameCoordSys = coordSys && targetCoordSys ? coordSys === targetCoordSys : sameSeries;
-    if (!(blurScope === "series" && !sameSeries || blurScope === "coordinateSystem" && !sameCoordSys || focus === "series" && sameSeries)) {
-      const view = ecIns.getViewOfSeriesModel(seriesModel);
-      view.group.traverse(function(child) {
-        singleEnterBlur(child);
-      });
-      if (isArrayLike(focus)) {
-        leaveBlurOfIndices(seriesModel.getData(), focus);
-      } else if (isObject(focus)) {
-        const dataTypes = keys(focus);
-        for (let d = 0; d < dataTypes.length; d++) {
-          leaveBlurOfIndices(seriesModel.getData(dataTypes[d]), focus[dataTypes[d]]);
-        }
-      }
-      blurredSeries.push(seriesModel);
-    }
-  });
-  ecModel.eachComponent(function(componentType, componentModel) {
-    if (componentType === "series") {
-      return;
-    }
-    const view = ecIns.getViewOfComponentModel(componentModel);
-    if (view && view.blurSeries) {
-      view.blurSeries(blurredSeries, ecModel);
-    }
-  });
-}
-function toggleSeriesBlurStateFromPayload(seriesModel, payload, ecIns) {
-  if (!isHighDownPayload(payload)) {
-    return;
-  }
-  const isHighlight = payload.type === HIGHLIGHT_ACTION_TYPE;
-  const seriesIndex = seriesModel.seriesIndex;
-  const data = seriesModel.getData(payload.dataType);
-  let dataIndex = queryDataIndex(data, payload);
-  dataIndex = (isArray(dataIndex) ? dataIndex[0] : dataIndex) || 0;
-  let el = data.getItemGraphicEl(dataIndex);
-  if (!el) {
-    const count2 = data.count();
-    let current = 0;
-    while (!el && current < count2) {
-      el = data.getItemGraphicEl(current++);
-    }
-  }
-  if (el) {
-    const ecData = getECData(el);
-    toggleSeriesBlurState(seriesIndex, ecData.focus, ecData.blurScope, ecIns, isHighlight);
-  } else {
-    const focus = seriesModel.get(["emphasis", "focus"]);
-    const blurScope = seriesModel.get(["emphasis", "blurScope"]);
-    if (focus != null) {
-      toggleSeriesBlurState(seriesIndex, focus, blurScope, ecIns, isHighlight);
-    }
-  }
-}
-function toggleSelectionFromPayload(seriesModel, payload, ecIns) {
-  if (!isSelectChangePayload(payload)) {
-    return;
-  }
-  const dataType = payload.dataType;
-  const data = seriesModel.getData(dataType);
-  let dataIndex = queryDataIndex(data, payload);
-  if (!isArray(dataIndex)) {
-    dataIndex = [dataIndex];
-  }
-  seriesModel[payload.type === TOGGLE_SELECT_ACTION_TYPE ? "toggleSelect" : payload.type === SELECT_ACTION_TYPE ? "select" : "unselect"](dataIndex, dataType);
-}
-function updateSeriesElementSelection(seriesModel) {
-  const allData = seriesModel.getAllData();
-  each(allData, function({data, type}) {
-    data.eachItemGraphicEl(function(el, idx) {
-      seriesModel.isSelected(idx, type) ? enterSelect(el) : leaveSelect(el);
-    });
-  });
-}
-function getAllSelectedIndices(ecModel) {
-  const ret = [];
-  ecModel.eachSeries(function(seriesModel) {
-    const allData = seriesModel.getAllData();
-    each(allData, function({data, type}) {
-      const dataIndices = seriesModel.getSelectedDataIndices();
-      if (dataIndices.length > 0) {
-        const item = {
-          dataIndex: dataIndices,
-          seriesIndex: seriesModel.seriesIndex
-        };
-        if (type != null) {
-          item.dataType = type;
-        }
-        ret.push(item);
-      }
-    });
-  });
-  return ret;
-}
-function enableHoverEmphasis(el, focus, blurScope) {
-  setAsHighDownDispatcher(el, true);
-  traverseUpdateState(el, setDefaultStateProxy);
-  enableHoverFocus(el, focus, blurScope);
-}
-function enableHoverFocus(el, focus, blurScope) {
-  if (focus != null) {
-    const ecData = getECData(el);
-    ecData.focus = focus;
-    ecData.blurScope = blurScope;
-  }
-}
-const OTHER_STATES = ["emphasis", "blur", "select"];
-const styleGetterMap = {
-  itemStyle: "getItemStyle",
-  lineStyle: "getLineStyle",
-  areaStyle: "getAreaStyle"
-};
-function setStatesStylesFromModel(el, itemModel, styleType, getterType) {
-  styleType = styleType || "itemStyle";
-  for (let i = 0; i < OTHER_STATES.length; i++) {
-    const stateName = OTHER_STATES[i];
-    const model65 = itemModel.getModel([stateName, styleType]);
-    const state = el.ensureState(stateName);
-    state.style = model65[getterType || styleGetterMap[styleType]]();
-  }
-}
-function setAsHighDownDispatcher(el, asDispatcher) {
-  const disable = asDispatcher === false;
-  const extendedEl = el;
-  if (el.highDownSilentOnTouch) {
-    extendedEl.__highDownSilentOnTouch = el.highDownSilentOnTouch;
-  }
-  if (!disable || extendedEl.__highDownDispatcher) {
-    extendedEl.__highByOuter = extendedEl.__highByOuter || 0;
-    extendedEl.__highDownDispatcher = !disable;
-  }
-}
-function isHighDownDispatcher(el) {
-  return !!(el && el.__highDownDispatcher);
-}
-function getHighlightDigit(highlightKey) {
-  let highlightDigit = _highlightKeyMap[highlightKey];
-  if (highlightDigit == null && _highlightNextDigit <= 32) {
-    highlightDigit = _highlightKeyMap[highlightKey] = _highlightNextDigit++;
-  }
-  return highlightDigit;
-}
-function isSelectChangePayload(payload) {
-  const payloadType = payload.type;
-  return payloadType === SELECT_ACTION_TYPE || payloadType === UNSELECT_ACTION_TYPE || payloadType === TOGGLE_SELECT_ACTION_TYPE;
-}
-function isHighDownPayload(payload) {
-  const payloadType = payload.type;
-  return payloadType === HIGHLIGHT_ACTION_TYPE || payloadType === DOWNPLAY_ACTION_TYPE;
-}
-function savePathStates(el) {
-  const store = getSavedStates(el);
-  store.normalFill = el.style.fill;
-  store.normalStroke = el.style.stroke;
-  const selectState = el.states.select || {};
-  store.selectFill = selectState.style && selectState.style.fill || null;
-  store.selectStroke = selectState.style && selectState.style.stroke || null;
-}
-
-// src/util/log.ts
-const storedLogs = {};
-function deprecateLog(str) {
-  if (__DEV__) {
-    if (storedLogs[str]) {
-      return;
-    }
-    if (typeof console !== "undefined" && console.warn) {
-      storedLogs[str] = true;
-      console.warn("[ECharts] DEPRECATED: " + str);
-    }
-  }
-}
-function deprecateReplaceLog(oldOpt, newOpt, scope) {
-  if (__DEV__) {
-    deprecateLog((scope ? `[${scope}]` : "") + `${oldOpt} is deprecated, use ${newOpt} instead.`);
-  }
-}
-
-// src/label/labelStyle.ts
-const EMPTY_OBJ = {};
-function getLabelText(opt, stateModels, overrideValue) {
-  const labelFetcher = opt.labelFetcher;
-  const labelDataIndex = opt.labelDataIndex;
-  const labelDimIndex = opt.labelDimIndex;
-  const normalModel = stateModels.normal;
-  let baseText;
-  if (labelFetcher) {
-    baseText = labelFetcher.getFormattedLabel(labelDataIndex, "normal", null, labelDimIndex, normalModel && normalModel.get("formatter"), overrideValue != null ? {
-      value: overrideValue
-    } : null);
-  }
-  if (baseText == null) {
-    baseText = isFunction(opt.defaultText) ? opt.defaultText(labelDataIndex, opt) : opt.defaultText;
-  }
-  const statesText = {
-    normal: baseText
-  };
-  for (let i = 0; i < SPECIAL_STATES.length; i++) {
-    const stateName = SPECIAL_STATES[i];
-    const stateModel = stateModels[stateName];
-    statesText[stateName] = retrieve2(labelFetcher ? labelFetcher.getFormattedLabel(labelDataIndex, stateName, null, labelDimIndex, stateModel && stateModel.get("formatter")) : null, baseText);
-  }
-  return statesText;
-}
-function setLabelStyle(targetEl, labelStatesModels, opt, stateSpecified) {
-  opt = opt || EMPTY_OBJ;
-  const isSetOnText = targetEl instanceof Text_default;
-  let needsCreateText = false;
-  for (let i = 0; i < DISPLAY_STATES.length; i++) {
-    const stateModel = labelStatesModels[DISPLAY_STATES[i]];
-    if (stateModel && stateModel.getShallow("show")) {
-      needsCreateText = true;
-      break;
-    }
-  }
-  let textContent = isSetOnText ? targetEl : null;
-  if (needsCreateText) {
-    if (!isSetOnText) {
-      textContent = targetEl.getTextContent();
-      if (!textContent) {
-        textContent = new Text_default();
-        targetEl.setTextContent(textContent);
-      }
-      if (targetEl.stateProxy) {
-        textContent.stateProxy = targetEl.stateProxy;
-      }
-    }
-    const labelStatesTexts = getLabelText(opt, labelStatesModels);
-    const normalModel = labelStatesModels.normal;
-    const showNormal = normalModel.getShallow("show");
-    const normalStyle = createTextStyle(normalModel, stateSpecified && stateSpecified.normal, opt, false, !isSetOnText);
-    normalStyle.text = labelStatesTexts.normal;
-    if (!isSetOnText) {
-      targetEl.setTextConfig(createTextConfig(normalModel, opt, false));
-    }
-    for (let i = 0; i < SPECIAL_STATES.length; i++) {
-      const stateName = SPECIAL_STATES[i];
-      const stateModel = labelStatesModels[stateName];
-      if (stateModel) {
-        const stateObj = textContent.ensureState(stateName);
-        stateObj.ignore = !retrieve2(stateModel.getShallow("show"), showNormal);
-        stateObj.style = createTextStyle(stateModel, stateSpecified && stateSpecified[stateName], opt, true, !isSetOnText);
-        stateObj.style.text = labelStatesTexts[stateName];
-        if (!isSetOnText) {
-          const targetElEmphasisState = targetEl.ensureState(stateName);
-          targetElEmphasisState.textConfig = createTextConfig(stateModel, opt, true);
-        }
-      }
-    }
-    textContent.silent = !!normalModel.getShallow("silent");
-    if (textContent.style.x != null) {
-      normalStyle.x = textContent.style.x;
-    }
-    if (textContent.style.y != null) {
-      normalStyle.y = textContent.style.y;
-    }
-    textContent.ignore = !showNormal;
-    textContent.useStyle(normalStyle);
-    textContent.dirty();
-  } else if (textContent) {
-    textContent.ignore = true;
-  }
-  targetEl.dirty();
-}
-function getLabelStatesModels(itemModel, labelName) {
-  labelName = labelName || "label";
-  const statesModels = {
-    normal: itemModel.getModel(labelName)
-  };
-  for (let i = 0; i < SPECIAL_STATES.length; i++) {
-    const stateName = SPECIAL_STATES[i];
-    statesModels[stateName] = itemModel.getModel([stateName, labelName]);
-  }
-  return statesModels;
-}
-function createTextStyle(textStyleModel, specifiedTextStyle, opt, isNotNormal, isAttached) {
-  const textStyle2 = {};
-  setTextStyleCommon(textStyle2, textStyleModel, opt, isNotNormal, isAttached);
-  specifiedTextStyle && extend(textStyle2, specifiedTextStyle);
-  return textStyle2;
-}
-function createTextConfig(textStyleModel, opt, isNotNormal) {
-  opt = opt || {};
-  const textConfig = {};
-  let labelPosition;
-  let labelRotate = textStyleModel.getShallow("rotate");
-  const labelDistance = retrieve2(textStyleModel.getShallow("distance"), isNotNormal ? null : 5);
-  const labelOffset = textStyleModel.getShallow("offset");
-  labelPosition = textStyleModel.getShallow("position") || (isNotNormal ? null : "inside");
-  labelPosition === "outside" && (labelPosition = opt.defaultOutsidePosition || "top");
-  if (labelPosition != null) {
-    textConfig.position = labelPosition;
-  }
-  if (labelOffset != null) {
-    textConfig.offset = labelOffset;
-  }
-  if (labelRotate != null) {
-    labelRotate *= Math.PI / 180;
-    textConfig.rotation = labelRotate;
-  }
-  if (labelDistance != null) {
-    textConfig.distance = labelDistance;
-  }
-  textConfig.outsideFill = textStyleModel.get("color") === "inherit" ? opt.inheritColor || null : "auto";
-  return textConfig;
-}
-function setTextStyleCommon(textStyle2, textStyleModel, opt, isNotNormal, isAttached) {
-  opt = opt || EMPTY_OBJ;
-  const ecModel = textStyleModel.ecModel;
-  const globalTextStyle = ecModel && ecModel.option.textStyle;
-  const richItemNames = getRichItemNames(textStyleModel);
-  let richResult;
-  if (richItemNames) {
-    richResult = {};
-    for (const name in richItemNames) {
-      if (richItemNames.hasOwnProperty(name)) {
-        const richTextStyle = textStyleModel.getModel(["rich", name]);
-        setTokenTextStyle(richResult[name] = {}, richTextStyle, globalTextStyle, opt, isNotNormal, isAttached);
-      }
-    }
-  }
-  if (richResult) {
-    textStyle2.rich = richResult;
-  }
-  const overflow = textStyleModel.get("overflow");
-  if (overflow) {
-    textStyle2.overflow = overflow;
-  }
-  const margin = textStyleModel.get("minMargin");
-  if (margin != null) {
-    textStyle2.margin = margin;
-  }
-  setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isNotNormal, isAttached, true);
-}
-function getRichItemNames(textStyleModel) {
-  let richItemNameMap;
-  while (textStyleModel && textStyleModel !== textStyleModel.ecModel) {
-    const rich = (textStyleModel.option || EMPTY_OBJ).rich;
-    if (rich) {
-      richItemNameMap = richItemNameMap || {};
-      const richKeys = keys(rich);
-      for (let i = 0; i < richKeys.length; i++) {
-        const richKey = richKeys[i];
-        richItemNameMap[richKey] = 1;
-      }
-    }
-    textStyleModel = textStyleModel.parentModel;
-  }
-  return richItemNameMap;
-}
-const TEXT_PROPS_WITH_GLOBAL = ["fontStyle", "fontWeight", "fontSize", "fontFamily", "opacity", "textShadowColor", "textShadowBlur", "textShadowOffsetX", "textShadowOffsetY"];
-const TEXT_PROPS_SELF = ["align", "lineHeight", "width", "height", "tag", "verticalAlign"];
-const TEXT_PROPS_BOX = ["padding", "borderWidth", "borderRadius", "backgroundColor", "borderColor", "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY"];
-function setTokenTextStyle(textStyle2, textStyleModel, globalTextStyle, opt, isNotNormal, isAttached, isBlock) {
-  globalTextStyle = !isNotNormal && globalTextStyle || EMPTY_OBJ;
-  const inheritColor = opt && opt.inheritColor;
-  let fillColor = textStyleModel.getShallow("color");
-  let strokeColor = textStyleModel.getShallow("textBorderColor");
-  if (fillColor === "inherit" || fillColor === "auto") {
-    if (__DEV__) {
-      if (fillColor === "auto") {
-        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
-      }
-    }
-    if (inheritColor) {
-      fillColor = inheritColor;
-    } else {
-      fillColor = null;
-    }
-  }
-  if (strokeColor === "inherit" || strokeColor === "auto") {
-    if (__DEV__) {
-      if (strokeColor === "auto") {
-        deprecateReplaceLog("color: 'auto'", "color: 'inherit'");
-      }
-    }
-    if (inheritColor) {
-      strokeColor = inheritColor;
-    } else {
-      strokeColor = null;
-    }
-  }
-  fillColor = fillColor || globalTextStyle.color;
-  strokeColor = strokeColor || globalTextStyle.textBorderColor;
-  if (fillColor != null) {
-    textStyle2.fill = fillColor;
-  }
-  if (strokeColor != null) {
-    textStyle2.stroke = strokeColor;
-  }
-  const lineWidth = retrieve2(textStyleModel.getShallow("textBorderWidth"), globalTextStyle.textBorderWidth);
-  if (lineWidth != null) {
-    textStyle2.lineWidth = lineWidth;
-  }
-  if (!isNotNormal && !isAttached) {
-    if (textStyle2.fill == null && opt.inheritColor) {
-      textStyle2.fill = opt.inheritColor;
-    }
-  }
-  for (let i = 0; i < TEXT_PROPS_WITH_GLOBAL.length; i++) {
-    const key = TEXT_PROPS_WITH_GLOBAL[i];
-    const val = retrieve2(textStyleModel.getShallow(key), globalTextStyle[key]);
-    if (val != null) {
-      textStyle2[key] = val;
-    }
-  }
-  for (let i = 0; i < TEXT_PROPS_SELF.length; i++) {
-    const key = TEXT_PROPS_SELF[i];
-    const val = textStyleModel.getShallow(key);
-    if (val != null) {
-      textStyle2[key] = val;
-    }
-  }
-  if (textStyle2.verticalAlign == null) {
-    const baseline = textStyleModel.getShallow("baseline");
-    if (baseline != null) {
-      textStyle2.verticalAlign = baseline;
-    }
-  }
-  if (!isBlock || !opt.disableBox) {
-    for (let i = 0; i < TEXT_PROPS_BOX.length; i++) {
-      const key = TEXT_PROPS_BOX[i];
-      const val = textStyleModel.getShallow(key);
-      if (val != null) {
-        textStyle2[key] = val;
-      }
-    }
-    if ((textStyle2.backgroundColor === "auto" || textStyle2.backgroundColor === "inherit") && inheritColor) {
-      if (__DEV__) {
-        if (textStyle2.backgroundColor === "auto") {
-          deprecateReplaceLog("backgroundColor: 'auto'", "backgroundColor: 'inherit'");
-        }
-      }
-      textStyle2.backgroundColor = inheritColor;
-    }
-    if ((textStyle2.borderColor === "auto" || textStyle2.borderColor === "inherit") && inheritColor) {
-      if (__DEV__) {
-        if (textStyle2.borderColor === "auto") {
-          deprecateReplaceLog("borderColor: 'auto'", "borderColor: 'inherit'");
-        }
-      }
-      textStyle2.borderColor = inheritColor;
-    }
-  }
-}
-function getFont(opt, ecModel) {
-  const gTextStyleModel = ecModel && ecModel.getModel("textStyle");
-  return trim([opt.fontStyle || gTextStyleModel && gTextStyleModel.getShallow("fontStyle") || "", opt.fontWeight || gTextStyleModel && gTextStyleModel.getShallow("fontWeight") || "", (opt.fontSize || gTextStyleModel && gTextStyleModel.getShallow("fontSize") || 12) + "px", opt.fontFamily || gTextStyleModel && gTextStyleModel.getShallow("fontFamily") || "sans-serif"].join(" "));
-}
-
-// src/model/mixin/textStyle.ts
-const PATH_COLOR = ["textStyle", "color"];
-const tmpRichText = new Text_default();
-class TextStyleMixin {
-  getTextColor(isEmphasis) {
-    const ecModel = this.ecModel;
-    return this.getShallow("color") || (!isEmphasis && ecModel ? ecModel.get(PATH_COLOR) : null);
-  }
-  getFont() {
-    return getFont({
-      fontStyle: this.getShallow("fontStyle"),
-      fontWeight: this.getShallow("fontWeight"),
-      fontSize: this.getShallow("fontSize"),
-      fontFamily: this.getShallow("fontFamily")
-    }, this.ecModel);
-  }
-  getTextRect(text11) {
-    tmpRichText.useStyle({
-      text: text11,
-      fontStyle: this.getShallow("fontStyle"),
-      fontWeight: this.getShallow("fontWeight"),
-      fontSize: this.getShallow("fontSize"),
-      fontFamily: this.getShallow("fontFamily"),
-      verticalAlign: this.getShallow("verticalAlign") || this.getShallow("baseline"),
-      padding: this.getShallow("padding"),
-      lineHeight: this.getShallow("lineHeight"),
-      rich: this.getShallow("rich")
-    });
-    tmpRichText.update();
-    return tmpRichText.getBoundingRect();
-  }
-}
-const textStyle_default = TextStyleMixin;
-
-// src/model/mixin/lineStyle.ts
-const LINE_STYLE_KEY_MAP = [["lineWidth", "width"], ["stroke", "color"], ["opacity"], ["shadowBlur"], ["shadowOffsetX"], ["shadowOffsetY"], ["shadowColor"]];
-const getLineStyle = makeStyleMapper_default(LINE_STYLE_KEY_MAP);
-class LineStyleMixin {
-  getLineStyle(excludes) {
-    const style2 = getLineStyle(this, excludes);
-    style2.lineDash = this.getLineDash(style2.lineWidth);
-    return style2;
-  }
-  getLineDash(lineWidth) {
-    if (lineWidth == null) {
-      lineWidth = 1;
-    }
-    const lineType = this.get("type");
-    const dotSize = Math.max(lineWidth, 2);
-    const dashSize = lineWidth * 4;
-    return lineType === "solid" || lineType == null ? false : lineType === "dashed" ? [dashSize, dashSize] : [dotSize, dotSize];
-  }
-}
-
-// src/model/mixin/itemStyle.ts
-const ITEM_STYLE_KEY_MAP = [["fill", "color"], ["stroke", "borderColor"], ["lineWidth", "borderWidth"], ["opacity"], ["shadowBlur"], ["shadowOffsetX"], ["shadowOffsetY"], ["shadowColor"]];
-const getItemStyle = makeStyleMapper_default(ITEM_STYLE_KEY_MAP);
-class ItemStyleMixin {
-  getItemStyle(excludes, includes) {
-    const style2 = getItemStyle(this, excludes, includes);
-    const lineDash = this.getBorderLineDash();
-    lineDash && (style2.lineDash = lineDash);
-    return style2;
-  }
-  getBorderLineDash() {
-    const lineType = this.get("borderType");
-    return lineType === "solid" || lineType == null ? null : lineType === "dashed" ? [5, 5] : [1, 1];
-  }
-}
-
-// src/model/Model.ts
-class Model108 {
-  constructor(option, parentModel, ecModel) {
-    this.parentModel = parentModel;
-    this.ecModel = ecModel;
-    this.option = option;
-  }
-  init(option, parentModel, ecModel, ...rest) {
-  }
-  mergeOption(option, ecModel) {
-    merge(this.option, option, true);
-  }
-  get(path2, ignoreParent) {
-    if (path2 == null) {
-      return this.option;
-    }
-    return this._doGet(this.parsePath(path2), !ignoreParent && this.parentModel);
-  }
-  getShallow(key, ignoreParent) {
-    const option = this.option;
-    let val = option == null ? option : option[key];
-    if (val == null && !ignoreParent) {
-      const parentModel = this.parentModel;
-      if (parentModel) {
-        val = parentModel.getShallow(key);
-      }
-    }
-    return val;
-  }
-  getModel(path2, parentModel) {
-    const hasPath = path2 != null;
-    const pathFinal = hasPath ? this.parsePath(path2) : null;
-    const obj = hasPath ? this._doGet(pathFinal) : this.option;
-    parentModel = parentModel || this.parentModel && this.parentModel.getModel(this.resolveParentPath(pathFinal));
-    return new Model108(obj, parentModel, this.ecModel);
-  }
-  isEmpty() {
-    return this.option == null;
-  }
-  restoreData() {
-  }
-  clone() {
-    const Ctor = this.constructor;
-    return new Ctor(clone2(this.option));
-  }
-  parsePath(path2) {
-    if (typeof path2 === "string") {
-      return path2.split(".");
-    }
-    return path2;
-  }
-  resolveParentPath(path2) {
-    return path2;
-  }
-  isAnimationEnabled() {
-    if (!env_default.node && this.option) {
-      if (this.option.animation != null) {
-        return !!this.option.animation;
-      } else if (this.parentModel) {
-        return this.parentModel.isAnimationEnabled();
-      }
-    }
-  }
-  _doGet(pathArr, parentModel) {
-    let obj = this.option;
-    if (!pathArr) {
-      return obj;
-    }
-    for (let i = 0; i < pathArr.length; i++) {
-      if (!pathArr[i]) {
-        continue;
-      }
-      obj = obj && typeof obj === "object" ? obj[pathArr[i]] : null;
-      if (obj == null) {
-        break;
-      }
-    }
-    if (obj == null && parentModel) {
-      obj = parentModel._doGet(this.resolveParentPath(pathArr), parentModel.parentModel);
-    }
-    return obj;
-  }
-}
-enableClassExtend(Model108);
-enableClassCheck(Model108);
-mixin(Model108, LineStyleMixin);
-mixin(Model108, ItemStyleMixin);
-mixin(Model108, AreaStyleMixin);
-mixin(Model108, textStyle_default);
-const Model_default = Model108;
-
-// src/util/component.ts
-let base = Math.round(Math.random() * 10);
-function getUID(type) {
-  return [type || "", base++].join("_");
-}
-function enableSubTypeDefaulter(target) {
-  const subTypeDefaulters = {};
-  target.registerSubTypeDefaulter = function(componentType, defaulter) {
-    const componentTypeInfo = parseClassType(componentType);
-    subTypeDefaulters[componentTypeInfo.main] = defaulter;
-  };
-  target.determineSubType = function(componentType, option) {
-    let type = option.type;
-    if (!type) {
-      const componentTypeMain = parseClassType(componentType).main;
-      if (target.hasSubTypes(componentType) && subTypeDefaulters[componentTypeMain]) {
-        type = subTypeDefaulters[componentTypeMain](option);
-      }
-    }
-    return type;
-  };
-}
-function enableTopologicalTravel(entity, dependencyGetter) {
-  entity.topologicalTravel = function(targetNameList, fullNameList, callback, context) {
-    if (!targetNameList.length) {
-      return;
-    }
-    const result = makeDepndencyGraph(fullNameList);
-    const graph2 = result.graph;
-    const stack = result.noEntryList;
-    const targetNameSet = {};
-    each(targetNameList, function(name) {
-      targetNameSet[name] = true;
-    });
-    while (stack.length) {
-      const currComponentType = stack.pop();
-      const currVertex = graph2[currComponentType];
-      const isInTargetNameSet = !!targetNameSet[currComponentType];
-      if (isInTargetNameSet) {
-        callback.call(context, currComponentType, currVertex.originalDeps.slice());
-        delete targetNameSet[currComponentType];
-      }
-      each(currVertex.successor, isInTargetNameSet ? removeEdgeAndAdd : removeEdge);
-    }
-    each(targetNameSet, function() {
-      throw new Error("Circle dependency may exists");
-    });
-    function removeEdge(succComponentType) {
-      graph2[succComponentType].entryCount--;
-      if (graph2[succComponentType].entryCount === 0) {
-        stack.push(succComponentType);
-      }
-    }
-    function removeEdgeAndAdd(succComponentType) {
-      targetNameSet[succComponentType] = true;
-      removeEdge(succComponentType);
-    }
-  };
-  function makeDepndencyGraph(fullNameList) {
-    const graph2 = {};
-    const noEntryList = [];
-    each(fullNameList, function(name) {
-      const thisItem = createDependencyGraphItem(graph2, name);
-      const originalDeps = thisItem.originalDeps = dependencyGetter(name);
-      const availableDeps = getAvailableDependencies(originalDeps, fullNameList);
-      thisItem.entryCount = availableDeps.length;
-      if (thisItem.entryCount === 0) {
-        noEntryList.push(name);
-      }
-      each(availableDeps, function(dependentName) {
-        if (indexOf(thisItem.predecessor, dependentName) < 0) {
-          thisItem.predecessor.push(dependentName);
-        }
-        const thatItem = createDependencyGraphItem(graph2, dependentName);
-        if (indexOf(thatItem.successor, dependentName) < 0) {
-          thatItem.successor.push(name);
-        }
-      });
-    });
-    return {
-      graph: graph2,
-      noEntryList
-    };
-  }
-  function createDependencyGraphItem(graph2, name) {
-    if (!graph2[name]) {
-      graph2[name] = {
-        predecessor: [],
-        successor: []
-      };
-    }
-    return graph2[name];
-  }
-  function getAvailableDependencies(originalDeps, fullNameList) {
-    const availableDeps = [];
-    each(originalDeps, function(dep) {
-      indexOf(fullNameList, dep) >= 0 && availableDeps.push(dep);
-    });
-    return availableDeps;
-  }
-}
-function inheritDefaultOption(superOption, subOption) {
-  return merge(merge({}, superOption, true), subOption, true);
-}
 
 // src/legacy/getTextRect.ts
 function getTextRect(text11, font, align, verticalAlign, padding, rich, truncate, lineHeight) {
@@ -13724,6 +14033,7 @@ const format_exports = {};
 __export(format_exports, {
   addCommas: () => addCommas,
   capitalFirst: () => capitalFirst,
+  concatTooltipHtml: () => concatTooltipHtml,
   encodeHTML: () => encodeHTML,
   formatTime: () => formatTime,
   formatTpl: () => formatTpl,
@@ -13731,6 +14041,7 @@ __export(format_exports, {
   getTextRect: () => getTextRect,
   getTooltipMarker: () => getTooltipMarker,
   normalizeCssArray: () => normalizeCssArray2,
+  pad: () => pad,
   toCamelCase: () => toCamelCase2,
   truncateText: () => truncateText,
   windowOpen: () => windowOpen
@@ -13765,6 +14076,9 @@ function encodeHTML(source) {
     return replaceMap[c];
   });
 }
+function concatTooltipHtml(html, value, dontEncodeHtml) {
+  return (dontEncodeHtml ? html : `<span style="font-size:12px;color:#6e7079;">${encodeHTML(html)}</span>`) + (value ? '<span style="float:right;margin-left:20px;color:#464646;font-weight:900;font-size:14px;">' : "") + encodeHTML(value) + (value ? "</span>" : "");
+}
 const TPL_VAR_ALIAS = ["a", "b", "c", "d", "e", "f", "g"];
 const wrapVar = function(varName, seriesIdx) {
   return "{" + varName + (seriesIdx == null ? "" : seriesIdx) + "}";
@@ -13777,15 +14091,22 @@ function formatTpl(tpl, paramsList, encode) {
   if (!seriesLen) {
     return "";
   }
-  const $vars = paramsList[0].$vars || [];
-  for (let i = 0; i < $vars.length; i++) {
-    const alias = TPL_VAR_ALIAS[i];
-    tpl = tpl.replace(wrapVar(alias), wrapVar(alias, 0));
-  }
-  for (let seriesIdx = 0; seriesIdx < seriesLen; seriesIdx++) {
-    for (let k = 0; k < $vars.length; k++) {
-      const val = paramsList[seriesIdx][$vars[k]];
-      tpl = tpl.replace(wrapVar(TPL_VAR_ALIAS[k], seriesIdx), encode ? encodeHTML(val) : val);
+  const isTimeAxis = paramsList[0].axisType && paramsList[0].axisType.indexOf("time") >= 0;
+  if (isTimeAxis) {
+    const axisValue = paramsList[0].data[paramsList[0].axisIndex];
+    const date = getDateFromStr(typeof axisValue === "number" ? new Date(axisValue) : axisValue);
+    return format16(date, tpl);
+  } else {
+    const $vars = paramsList[0].$vars || [];
+    for (let i = 0; i < $vars.length; i++) {
+      const alias = TPL_VAR_ALIAS[i];
+      tpl = tpl.replace(wrapVar(alias), wrapVar(alias, 0));
+    }
+    for (let seriesIdx = 0; seriesIdx < seriesLen; seriesIdx++) {
+      for (let k = 0; k < $vars.length; k++) {
+        const val = paramsList[seriesIdx][$vars[k]];
+        tpl = tpl.replace(wrapVar(TPL_VAR_ALIAS[k], seriesIdx), encode ? encodeHTML(val) : val);
+      }
     }
   }
   return tpl;
@@ -13810,7 +14131,7 @@ function getTooltipMarker(inOpt, extraCssText) {
     return "";
   }
   if (renderMode === "html") {
-    return type === "subItem" ? '<span style="display:inline-block;vertical-align:middle;margin-right:8px;margin-left:3px;border-radius:4px;width:4px;height:4px;background-color:' + encodeHTML(color8) + ";" + (extraCssText || "") + '"></span>' : '<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:' + encodeHTML(color8) + ";" + (extraCssText || "") + '"></span>';
+    return type === "subItem" ? '<span style="display:inline-block;vertical-align:middle;margin-right:8px;margin-left:3px;border-radius:4px;width:4px;height:4px;background-color:' + encodeHTML(color8) + ";" + (extraCssText || "") + '"></span>' : '<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:' + encodeHTML(color8) + ";" + (extraCssText || "") + '"></span>';
   } else {
     return {
       renderMode,
@@ -14431,7 +14752,7 @@ function completeBySourceData(data, sourceFormat, seriesLayoutBy, sourceHeader, 
     const value0 = getDataItemValue(data[0]);
     dimensionsDetectCount = isArray(value0) && value0.length || 1;
   } else if (sourceFormat === SOURCE_FORMAT_TYPED_ARRAY) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(!!dimensionsDefine, "dimensions must be given if data is TypedArray.");
     }
   }
@@ -14715,7 +15036,7 @@ function concatInternalOptions(ecModel, mainType, newCmptOptionList) {
   if (!internalOptions) {
     return newCmptOptionList;
   }
-  if (__DEV__) {
+  if ('_DEV_') {
     for (let i = 0; i < internalOptions.length; i++) {
       assert(isComponentIdInternal(internalOptions[i]));
     }
@@ -15062,7 +15383,7 @@ GlobalModel145.internalField = function() {
     ecModel._seriesIndicesMap = createHashMap(seriesIndices);
   };
   assertSeriesInitialized = function(ecModel) {
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!ecModel._seriesIndices) {
         throw new Error("Option should contains series.");
       }
@@ -15126,7 +15447,7 @@ function filterBySubType(components, condition) {
 function normalizeReplaceMergeInput(opts) {
   const replaceMergeMainTypeMap = createHashMap();
   opts && each(normalizeToArray(opts.replaceMerge), function(mainType) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(Component_default.hasClass(mainType), '"' + mainType + '" is not valid component main type in "replaceMerge"');
     }
     replaceMergeMainTypeMap.set(mainType, true);
@@ -15353,7 +15674,7 @@ function compatEC2ItemStyle(opt) {
     const normalItemStyleOpt = itemStyleOpt.normal;
     const emphasisItemStyleOpt = itemStyleOpt.emphasis;
     if (normalItemStyleOpt && normalItemStyleOpt[styleName]) {
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateReplaceLog(`itemStyle.normal.${styleName}`, styleName);
       }
       opt[styleName] = opt[styleName] || {};
@@ -15365,7 +15686,7 @@ function compatEC2ItemStyle(opt) {
       normalItemStyleOpt[styleName] = null;
     }
     if (emphasisItemStyleOpt && emphasisItemStyleOpt[styleName]) {
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateReplaceLog(`itemStyle.emphasis.${styleName}`, `emphasis.${styleName}`);
       }
       opt[styleName] = opt[styleName] || {};
@@ -15383,7 +15704,7 @@ function convertNormalEmphasis(opt, optType, useExtend) {
     const normalOpt = opt[optType].normal;
     const emphasisOpt = opt[optType].emphasis;
     if (normalOpt) {
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateLog(`'normal' hierarchy in ${optType} has been removed since 4.0. All style properties are configured in ${optType} directly now.`);
       }
       if (useExtend) {
@@ -15394,7 +15715,7 @@ function convertNormalEmphasis(opt, optType, useExtend) {
       }
     }
     if (emphasisOpt) {
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateLog(`${optType}.emphasis has been changed to emphasis.${optType} since 4.0`);
       }
       opt.emphasis = opt.emphasis || {};
@@ -15421,7 +15742,7 @@ function compatTextStyle(opt, propName) {
   const labelOptSingle = isObject4(opt) && opt[propName];
   const textStyle2 = isObject4(labelOptSingle) && labelOptSingle.textStyle;
   if (textStyle2) {
-    if (__DEV__) {
+    if ('_DEV_') {
       deprecateLog(`textStyle hierarchy in ${propName} has been removed since 4.0. All textStyle properties are configured in ${propName} directly now.`);
     }
     for (let i = 0, len2 = TEXT_STYLE_OPTIONS.length; i < len2; i++) {
@@ -15553,14 +15874,14 @@ function compatStyle_default(option, isTheme) {
     if (radarOpt.name && radarOpt.axisName == null) {
       radarOpt.axisName = radarOpt.name;
       delete radarOpt.name;
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateLog("name property in radar component has been changed to axisName");
       }
     }
     if (radarOpt.nameGap != null && radarOpt.axisNameGap == null) {
       radarOpt.axisNameGap = radarOpt.nameGap;
       delete radarOpt.nameGap;
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateLog("nameGap property in radar component has been changed to axisNameGap");
       }
     }
@@ -15642,7 +15963,7 @@ function compatBarItemStyle(option) {
       const newName = BAR_ITEM_STYLE_MAP[i][0];
       if (itemStyle5[oldName] != null) {
         itemStyle5[newName] = itemStyle5[oldName];
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateReplaceLog(oldName, newName);
         }
       }
@@ -15654,7 +15975,7 @@ function compatPieLabel(option) {
     return;
   }
   if (option.alignTo === "edge" && option.margin != null && option.edgeDistance == null) {
-    if (__DEV__) {
+    if ('_DEV_') {
       deprecateReplaceLog("label.margin", "label.edgeDistance", "pie");
     }
     option.edgeDistance = option.margin;
@@ -15666,7 +15987,7 @@ function compatSunburstState(option) {
   }
   if (option.downplay && !option.blur) {
     option.blur = option.downplay;
-    if (__DEV__) {
+    if ('_DEV_') {
       deprecateReplaceLog("downplay", "blur", "sunburst");
     }
   }
@@ -15678,7 +15999,7 @@ function compatGraphFocus(option) {
   if (option.focusNodeAdjacency != null) {
     option.emphasis = option.emphasis || {};
     if (option.emphasis.focus == null) {
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateReplaceLog("focusNodeAdjacency", "emphasis: { focus: 'adjacency'}", "graph/sankey");
       }
       option.emphasis.focus = "adjacency";
@@ -15704,14 +16025,14 @@ function backwardCompat_default2(option, isTheme) {
     if (seriesType2 === "line") {
       if (seriesOpt.clipOverflow != null) {
         seriesOpt.clip = seriesOpt.clipOverflow;
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateReplaceLog("clipOverflow", "clip", "line");
         }
       }
     } else if (seriesType2 === "pie" || seriesType2 === "gauge") {
       if (seriesOpt.clockWise != null) {
         seriesOpt.clockwise = seriesOpt.clockWise;
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateReplaceLog("clockWise", "clockwise");
         }
       }
@@ -15725,7 +16046,7 @@ function backwardCompat_default2(option, isTheme) {
       if (seriesOpt.hoverOffset != null) {
         seriesOpt.emphasis = seriesOpt.emphasis || {};
         if (seriesOpt.emphasis.scaleSize = null) {
-          if (__DEV__) {
+          if ('_DEV_') {
             deprecateReplaceLog("hoverOffset", "emphasis.scaleSize");
           }
           seriesOpt.emphasis.scaleSize = seriesOpt.hoverOffset;
@@ -15753,7 +16074,7 @@ function backwardCompat_default2(option, isTheme) {
         seriesOpt.emphasis = seriesOpt.emphasis || {};
         if (!seriesOpt.emphasis.focus) {
           seriesOpt.emphasis.focus = highlightPolicy;
-          if (__DEV__) {
+          if ('_DEV_') {
             deprecateReplaceLog("highlightPolicy", "emphasis.focus", "sunburst");
           }
         }
@@ -15764,13 +16085,13 @@ function backwardCompat_default2(option, isTheme) {
       compatGraphFocus(seriesOpt);
     } else if (seriesType2 === "map") {
       if (seriesOpt.mapType && !seriesOpt.map) {
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateReplaceLog("mapType", "map", "map");
         }
         seriesOpt.map = seriesOpt.mapType;
       }
       if (seriesOpt.mapLocation) {
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateLog("`mapLocation` is not used anymore.");
         }
         defaults(seriesOpt, seriesOpt.mapLocation);
@@ -15779,7 +16100,7 @@ function backwardCompat_default2(option, isTheme) {
     if (seriesOpt.hoverAnimation != null) {
       seriesOpt.emphasis = seriesOpt.emphasis || {};
       if (seriesOpt.emphasis && seriesOpt.emphasis.scale == null) {
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateReplaceLog("hoverAnimation", "emphasis.scale");
         }
         seriesOpt.emphasis.scale = seriesOpt.hoverAnimation;
@@ -15881,7 +16202,7 @@ class DefaultDataProvider {
     const data = this._data = source.data;
     const sourceFormat = source.sourceFormat;
     if (sourceFormat === SOURCE_FORMAT_TYPED_ARRAY) {
-      if (__DEV__) {
+      if ('_DEV_') {
         if (dimSize == null) {
           throw new Error("Typed array data must specify dimension size");
         }
@@ -15891,7 +16212,7 @@ class DefaultDataProvider {
       this._data = data;
     }
     const methods3 = providerMethods[sourceFormat === SOURCE_FORMAT_ARRAY_ROWS ? sourceFormat + "_" + source.seriesLayoutBy : sourceFormat];
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(methods3, "Invalide sourceFormat: " + sourceFormat);
     }
     extend(this, methods3);
@@ -16000,7 +16321,7 @@ DefaultDataProvider.internalField = function() {
         return out2;
       },
       appendData: function(newData) {
-        if (__DEV__) {
+        if ('_DEV_') {
           assert(isTypedArray(newData), "Added data must be TypedArray if data in initialization is TypedArray");
         }
         this._data = newData;
@@ -16124,7 +16445,7 @@ class DataFormatMixin {
   getRawValue(idx, dataType) {
     return retrieveRawValue(this.getData(dataType), idx);
   }
-  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode, order) {
     return;
   }
 }
@@ -16177,12 +16498,12 @@ class Task2 {
     this._modDataCount = modDataCount;
     const step2 = performArgs && performArgs.step;
     if (upTask) {
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(upTask._outputDueEnd != null);
       }
       this._dueEnd = upTask._outputDueEnd;
     } else {
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(!this._progress || this._count);
       }
       this._dueEnd = this._count ? this._count(this.context) : Infinity;
@@ -16202,7 +16523,7 @@ class Task2 {
       }
       this._dueIndex = end2;
       const outputDueEnd = this._settedOutputEnd != null ? this._settedOutputEnd : end2;
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(outputDueEnd >= this._outputDueEnd);
       }
       this._outputDueEnd = outputDueEnd;
@@ -16250,7 +16571,7 @@ class Task2 {
     return this._progress && this._dueIndex < this._dueEnd;
   }
   pipe(downTask) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(downTask && !downTask._disposed && downTask !== this);
     }
     if (this._downstream !== downTask || this._dirty) {
@@ -16330,7 +16651,7 @@ class SeriesModel42 extends Component_default {
     const data = this.getInitialData(option, ecModel);
     wrapData(data, this);
     this.dataTask.context.data = data;
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(data, "getInitialData returned invalid data.");
     }
     inner20(this).dataBeforeProcessed = data;
@@ -16424,7 +16745,7 @@ class SeriesModel42 extends Component_default {
   formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const series = this;
     renderMode = renderMode || "html";
-    const newLine = renderMode === "html" ? "<br/>" : "\n";
+    const newLine = renderMode === "html" ? "" : "\n";
     const isRichText = renderMode === "richText";
     const markers = {};
     let markerId = 0;
@@ -16451,15 +16772,15 @@ class SeriesModel42 extends Component_default {
           markerId: markName2
         });
         const dimHeadStr = typeof dimHead === "string" ? dimHead : dimHead.content;
-        const valStr = (vertially ? dimHeadStr + encodeHTML(dimInfo.displayName || "-") + ": " : "") + encodeHTML(dimType === "ordinal" ? val + "" : dimType === "time" ? multipleSeries ? "" : formatTime("yyyy/MM/dd hh:mm:ss", val) : addCommas(val));
-        valStr && result.push(valStr);
+        const valStr = (vertially ? '<span style="font-size:12px;color:#6e7079;">' + dimHeadStr + encodeHTML(dimInfo.displayName || "-") + "</span>" : "") + '<span style="float:right;margin-left:20px;color:#000;font-weight:900">' + encodeHTML(dimType === "ordinal" ? val + "" : dimType === "time" ? multipleSeries ? "" : formatTime("yyyy/MM/dd hh:mm:ss", val) : addCommas(val)) + "</span>";
+        valStr && result.push(`<div style="margin: 11px 0 0;line-height:1;">${valStr}</div>`);
         if (isRichText) {
           markers[markName2] = colorStr;
           ++markerId;
         }
       }
-      const newLine2 = vertially ? isRichText ? "\n" : "<br/>" : "";
-      const content2 = newLine2 + result.join(newLine2 || ", ");
+      const newLine2 = vertially ? isRichText ? "\n" : "" : "";
+      const content2 = newLine2 + result.join(newLine2 || "");
       return {
         renderMode,
         content: content2,
@@ -16488,7 +16809,7 @@ class SeriesModel42 extends Component_default {
     }
     colorStr = colorStr || "transparent";
     const formattedValue = tooltipDimLen > 1 || isValueArr && !tooltipDimLen ? formatArrayValue(value) : tooltipDimLen ? formatSingleValue(retrieveRawValue(data, dataIndex, tooltipDims[0])) : formatSingleValue(isValueArr ? value[0] : value);
-    const content = formattedValue.content;
+    const content = isRichText ? formattedValue.content : tooltipDimLen > 1 || isValueArr && !tooltipDimLen ? "<div>" + formattedValue.content + "</div>" : '<span style="float:right;margin-left:20px;color:#464646;font-weight:bold">' + formattedValue.content + "</span>";
     const markName = series.seriesIndex + "at" + markerId;
     const colorEl = getTooltipMarker({
       color: colorStr,
@@ -16503,9 +16824,15 @@ class SeriesModel42 extends Component_default {
     if (!isNameSpecified(this)) {
       seriesName = "";
     }
-    seriesName = seriesName ? encodeHTML(seriesName) + (!multipleSeries ? newLine : ": ") : "";
-    colorStr = typeof colorEl === "string" ? colorEl : colorEl.content;
-    const html = !multipleSeries ? seriesName + colorStr + (name ? encodeHTML(name) + ": " + content : content) : colorStr + seriesName + content;
+    seriesName = seriesName ? encodeHTML(seriesName) + (!multipleSeries ? newLine : " ") : "";
+    colorStr = isString(colorEl) ? colorEl : colorEl.content;
+    let html = "";
+    if (!isRichText) {
+      seriesName = seriesName ? !multipleSeries ? `<div style="font-size:12px;color:#6e7079;line-height:1;margin-top:-4px;">${seriesName}</div>` : `<span style="font-size:12px;color:#6e7079;line-height:1">${seriesName}</span>` : "";
+      html = !multipleSeries ? seriesName + `<div style="margin: ${seriesName ? 8 : 0}px 0 0;line-height:1">` + colorStr + (name ? `<span style="font-size:12px;color:#6e7079;">${encodeHTML(name)}</span>${content}` : content) + "</div>" : `<div style="margin: 11px 0 0;line-height:1;">${colorStr}${seriesName}${content}</div>`;
+    } else {
+      html = !multipleSeries ? seriesName + (seriesName ? "\n" : "") + "" + colorStr + (name ? `${encodeHTML(name)}: ${content}` : content) + "" : `${colorStr}${seriesName}: ${content}`;
+    }
     return {
       html,
       markers
@@ -17045,111 +17372,6 @@ const dataColorPaletteTask = {
         }
       });
     });
-  }
-};
-
-// src/lang.ts
-const lang_default = {
-  legend: {
-    selector: {
-      all: "全选",
-      inverse: "反选"
-    }
-  },
-  toolbox: {
-    brush: {
-      title: {
-        rect: "矩形选择",
-        polygon: "圈选",
-        lineX: "横向选择",
-        lineY: "纵向选择",
-        keep: "保持选择",
-        clear: "清除选择"
-      }
-    },
-    dataView: {
-      title: "数据视图",
-      lang: ["数据视图", "关闭", "刷新"]
-    },
-    dataZoom: {
-      title: {
-        zoom: "区域缩放",
-        back: "区域缩放还原"
-      }
-    },
-    magicType: {
-      title: {
-        line: "切换为折线图",
-        bar: "切换为柱状图",
-        stack: "切换为堆叠",
-        tiled: "切换为平铺"
-      }
-    },
-    restore: {
-      title: "还原"
-    },
-    saveAsImage: {
-      title: "保存为图片",
-      lang: ["右键另存为图片"]
-    }
-  },
-  series: {
-    typeNames: {
-      pie: "饼图",
-      bar: "柱状图",
-      line: "折线图",
-      scatter: "散点图",
-      effectScatter: "涟漪散点图",
-      radar: "雷达图",
-      tree: "树图",
-      treemap: "矩形树图",
-      boxplot: "箱型图",
-      candlestick: "K线图",
-      k: "K线图",
-      heatmap: "热力图",
-      map: "地图",
-      parallel: "平行坐标图",
-      lines: "线图",
-      graph: "关系图",
-      sankey: "桑基图",
-      funnel: "漏斗图",
-      gauge: "仪表盘图",
-      pictorialBar: "象形柱图",
-      themeRiver: "主题河流图",
-      sunburst: "旭日图"
-    }
-  },
-  aria: {
-    general: {
-      withTitle: "这是一个关于“{title}”的图表。",
-      withoutTitle: "这是一个图表，"
-    },
-    series: {
-      single: {
-        prefix: "",
-        withName: "图表类型是{seriesType}，表示{seriesName}。",
-        withoutName: "图表类型是{seriesType}。"
-      },
-      multiple: {
-        prefix: "它由{seriesCount}个图表系列组成。",
-        withName: "第{seriesId}个系列是一个表示{seriesName}的{seriesType}，",
-        withoutName: "第{seriesId}个系列是一个{seriesType}，",
-        separator: {
-          middle: "；",
-          end: "。"
-        }
-      }
-    },
-    data: {
-      allData: "其数据是——",
-      partialData: "其中，前{displayCnt}项是——",
-      withName: "{name}的数据是{value}",
-      withoutName: "{value}",
-      separator: {
-        middle: "，",
-        end: ""
-      }
-    }
   }
 };
 
@@ -17891,7 +18113,7 @@ const mapDataStorage_default = {
       let type = record.type;
       type === "geoJson" && (type = record.type = "geoJSON");
       const parse2 = parsers[type];
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(parse2, "Illegal map type: " + type);
       }
       parse2(record);
@@ -18076,7 +18298,7 @@ function getItemVisualFromData(data, dataIndex, key) {
     case "liftZ":
       return data.getItemVisual(dataIndex, key);
     default:
-      if (__DEV__) {
+      if ('_DEV_') {
         console.warn(`Unknown visual type ${key}`);
       }
   }
@@ -18093,7 +18315,7 @@ function getVisualFromData(data, key) {
     case "liftZ":
       return data.getVisual(key);
     default:
-      if (__DEV__) {
+      if ('_DEV_') {
         console.warn(`Unknown visual type ${key}`);
       }
   }
@@ -18114,7 +18336,7 @@ function setItemVisualFromData(data, dataIndex, key, value) {
       data.setItemVisual(dataIndex, key, value);
       break;
     default:
-      if (__DEV__) {
+      if ('_DEV_') {
         console.warn(`Unknown visual type ${key}`);
       }
   }
@@ -18802,7 +19024,7 @@ class LabelManager2 {
     this._chartViewList = [];
   }
   _addLabel(dataIndex, dataType, seriesModel, label, layoutOption) {
-    const labelStyle28 = label.style;
+    const labelStyle27 = label.style;
     const hostEl = label.__hostTarget;
     const textConfig = hostEl.textConfig || {};
     const labelTransform = label.getComputedTransform();
@@ -18840,13 +19062,13 @@ class LabelManager2 {
         rotation: dummyTransformable.rotation,
         rect: labelRect,
         style: {
-          x: labelStyle28.x,
-          y: labelStyle28.y,
-          align: labelStyle28.align,
-          verticalAlign: labelStyle28.verticalAlign,
-          width: labelStyle28.width,
-          height: labelStyle28.height,
-          fontSize: labelStyle28.fontSize
+          x: labelStyle27.x,
+          y: labelStyle27.y,
+          align: labelStyle27.align,
+          verticalAlign: labelStyle27.verticalAlign,
+          width: labelStyle27.width,
+          height: labelStyle27.height,
+          fontSize: labelStyle27.fontSize
         },
         cursor: label.cursor,
         attachedPos: textConfig.position,
@@ -18866,10 +19088,10 @@ class LabelManager2 {
         return true;
       }
       const textEl = child.getTextContent();
-      const ecData = getECData(child);
-      const dataIndex = ecData.dataIndex;
+      const ecData29 = getECData(child);
+      const dataIndex = ecData29.dataIndex;
       if (textEl && dataIndex != null && !textEl.disableLabelLayout) {
-        this._addLabel(dataIndex, ecData.dataType, seriesModel, textEl, layoutOption);
+        this._addLabel(dataIndex, ecData29.dataType, seriesModel, textEl, layoutOption);
       }
     });
   }
@@ -18992,10 +19214,10 @@ class LabelManager2 {
   }
   _updateLabelLine(el, seriesModel) {
     const textEl = el.getTextContent();
-    const ecData = getECData(el);
-    const dataIndex = ecData.dataIndex;
+    const ecData29 = getECData(el);
+    const dataIndex = ecData29.dataIndex;
     if (textEl && dataIndex != null) {
-      const data = seriesModel.getData(ecData.dataType);
+      const data = seriesModel.getData(ecData29.dataType);
       const itemModel = data.getItemModel(dataIndex);
       const defaultStyle = {};
       const visualStyle = data.getItemVisual(dataIndex, "style");
@@ -19095,7 +19317,7 @@ function createLegacyDataSelectAction(seriesType2, ecRegisterAction) {
   each([[seriesType2 + "ToggleSelect", "toggleSelect"], [seriesType2 + "Select", "select"], [seriesType2 + "UnSelect", "unselect"]], function(eventsMap) {
     ecRegisterAction(eventsMap[0], function(payload, ecModel, api) {
       payload = extend({}, payload);
-      if (__DEV__) {
+      if ('_DEV_') {
         deprecateReplaceLog(payload.type, eventsMap[1]);
       }
       api.dispatchAction(extend(payload, {
@@ -19108,7 +19330,7 @@ function createLegacyDataSelectAction(seriesType2, ecRegisterAction) {
 function handleSeriesLegacySelectEvents(type, eventPostfix, ecIns, payload) {
   const legacyEventName = type + eventPostfix;
   if (!ecIns.isSilent(legacyEventName)) {
-    if (__DEV__) {
+    if ('_DEV_') {
       deprecateLog(`event ${legacyEventName} is deprecated.`);
     }
     const ecModel = ecIns.getModel();
@@ -19287,11 +19509,20 @@ function brushPath(ctx, el, style2, inBatch) {
       }
     }
   }
-  const lineDash = style2.lineDash;
-  const lineDashOffset = style2.lineDashOffset;
+  let lineDash = style2.lineDash;
+  let lineDashOffset = style2.lineDashOffset;
   const ctxLineDash = !!ctx.setLineDash;
   const scale4 = el.getGlobalScale();
   path2.setScale(scale4[0], scale4[1], el.segmentIgnoreThreshold);
+  if (lineDash) {
+    const lineScale = style2.strokeNoScale && el.getLineScale ? el.getLineScale() : 1;
+    if (lineScale && lineScale !== 1) {
+      lineDash = map2(lineDash, function(rawVal) {
+        return rawVal / lineScale;
+      });
+      lineDashOffset /= lineScale;
+    }
+  }
   let needsRebuild = true;
   if (firstDraw || el.__dirty & Path_default.SHAPE_CHANGED_BIT || lineDash && !ctxLineDash && hasStroke) {
     path2.setDPR(ctx.dpr);
@@ -19377,6 +19608,21 @@ function brushText(ctx, el, style2) {
     ctx.font = style2.font || DEFAULT_FONT;
     ctx.textAlign = style2.textAlign;
     ctx.textBaseline = style2.textBaseline;
+    if (ctx.setLineDash) {
+      let lineDash = style2.lineDash;
+      let lineDashOffset = style2.lineDashOffset;
+      if (lineDash) {
+        const lineScale = style2.strokeNoScale && el.getLineScale ? el.getLineScale() : 1;
+        if (lineScale && lineScale !== 1) {
+          lineDash = map2(lineDash, function(rawVal) {
+            return rawVal / lineScale;
+          });
+          lineDashOffset /= lineScale;
+        }
+      }
+      ctx.setLineDash(lineDash || []);
+      ctx.lineDashOffset = lineDashOffset;
+    }
     if (style2.strokeFirst) {
       if (styleHasStroke(style2)) {
         ctx.strokeText(text11, style2.x, style2.y);
@@ -20263,13 +20509,13 @@ class CanvasPainter3 {
   setBackgroundColor(backgroundColor) {
     this._backgroundColor = backgroundColor;
   }
-  configLayer(zlevel, config58) {
-    if (config58) {
+  configLayer(zlevel, config7) {
+    if (config7) {
       const layerConfig = this._layerConfig;
       if (!layerConfig[zlevel]) {
-        layerConfig[zlevel] = config58;
+        layerConfig[zlevel] = config7;
       } else {
-        merge(layerConfig[zlevel], config58, true);
+        merge(layerConfig[zlevel], config7, true);
       }
       for (let i = 0; i < this._zlevelList.length; i++) {
         const _zlevel = this._zlevelList[i];
@@ -20452,7 +20698,6 @@ const assert2 = assert;
 const each16 = each;
 const isFunction2 = isFunction;
 const isObject3 = isObject;
-const getECData3 = getECData;
 const version2 = "4.8.0";
 const dependencies = {
   zrender: "4.3.1"
@@ -20553,7 +20798,7 @@ class ECharts extends Eventful2 {
     }
     this._dom = dom2;
     let defaultRenderer = "canvas";
-    if (__DEV__) {
+    if ('_DEV_') {
       defaultRenderer = (typeof window === "undefined" ? global : window).__ECHARTS__DEFAULT__RENDERER__ || defaultRenderer;
     }
     const zr = this._zr = init(dom2, {
@@ -20627,7 +20872,7 @@ class ECharts extends Eventful2 {
     return this._zr;
   }
   setOption(option, notMerge, lazyUpdate) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert2(!this[IN_MAIN_PROCESS_KEY], "`setOption` should not be called during main process.");
     }
     if (this._disposed) {
@@ -20851,12 +21096,12 @@ class ECharts extends Eventful2 {
           if (view && view.containPoint) {
             result = result || view.containPoint(value, model65);
           } else {
-            if (__DEV__) {
+            if ('_DEV_') {
               console.warn(key + ": " + (view ? "The found component do not support containPoint." : "No view mapping to the found component."));
             }
           }
         } else {
-          if (__DEV__) {
+          if ('_DEV_') {
             console.warn(key + ": containPoint is not supported");
           }
         }
@@ -20870,7 +21115,7 @@ class ECharts extends Eventful2 {
       defaultMainType: "series"
     });
     const seriesModel = parsedFinder.seriesModel;
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!seriesModel) {
         console.warn("There is no specified seires model");
       }
@@ -20892,14 +21137,14 @@ class ECharts extends Eventful2 {
         const el = e.target;
         let params;
         const isGlobalOut = eveName === "globalout";
-        const ecData = el && getECData3(el);
+        const ecData29 = el && getECData(el);
         if (isGlobalOut) {
           params = {};
-        } else if (ecData && ecData.dataIndex != null) {
-          const dataModel = ecData.dataModel || ecModel.getSeriesByIndex(ecData.seriesIndex);
-          params = dataModel && dataModel.getDataParams(ecData.dataIndex, ecData.dataType) || {};
-        } else if (el && ecData.eventData) {
-          params = extend({}, ecData.eventData);
+        } else if (ecData29 && ecData29.dataIndex != null) {
+          const dataModel = ecData29.dataModel || ecModel.getSeriesByIndex(ecData29.seriesIndex);
+          params = dataModel && dataModel.getDataParams(ecData29.dataIndex, ecData29.dataType) || {};
+        } else if (el && ecData29.eventData) {
+          params = extend({}, ecData29.eventData);
         }
         if (params) {
           let componentType = params.componentType;
@@ -20910,7 +21155,7 @@ class ECharts extends Eventful2 {
           }
           const model65 = componentType && componentIndex != null && ecModel.getComponent(componentType, componentIndex);
           const view = model65 && this[model65.mainType === "series" ? "_chartsMap" : "_componentsMap"][model65.__viewId];
-          if (__DEV__) {
+          if ('_DEV_') {
             if (!isGlobalOut && !(model65 && view)) {
               console.warn("model or view can not be found by params");
             }
@@ -20972,7 +21217,7 @@ class ECharts extends Eventful2 {
     delete instances2[this.id];
   }
   resize(opts) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert2(!this[IN_MAIN_PROCESS_KEY], "`resize` should not be called during main process.");
     }
     if (this._disposed) {
@@ -21011,7 +21256,7 @@ class ECharts extends Eventful2 {
     name = name || "default";
     this.hideLoading();
     if (!loadingEffects[name]) {
-      if (__DEV__) {
+      if ('_DEV_') {
         console.warn("Loading effects " + name + " not exists.");
       }
       return;
@@ -21079,7 +21324,7 @@ class ECharts extends Eventful2 {
     const seriesIndex = params.seriesIndex;
     const ecModel = this.getModel();
     const seriesModel = ecModel.getSeriesByIndex(seriesIndex);
-    if (__DEV__) {
+    if ('_DEV_') {
       assert2(params.data && seriesModel);
     }
     seriesModel.appendData(params);
@@ -21116,7 +21361,7 @@ ECharts.internalField = function() {
       if (!view) {
         const classType = parseClassType(model65.type);
         const Clazz = isComponent ? Component_default2.getClass(classType.main, classType.sub) : Chart_default.getClass(classType.sub);
-        if (__DEV__) {
+        if ('_DEV_') {
           assert2(Clazz, classType.sub + " does not exist.");
         }
         view = new Clazz();
@@ -21331,7 +21576,7 @@ ECharts.internalField = function() {
         return result;
       }
     }
-    if (__DEV__) {
+    if ('_DEV_') {
       console.warn("No coordinate system that supports " + methodName + " found by the given finder.");
     }
   };
@@ -21449,8 +21694,8 @@ ECharts.internalField = function() {
       const el = e.target;
       const dispatcher = getDispatcher(el, isHighDownDispatcher);
       if (dispatcher) {
-        const ecData = getECData3(dispatcher);
-        toggleSeriesBlurState(ecData.seriesIndex, ecData.focus, ecData.blurScope, ecIns, true);
+        const ecData29 = getECData(dispatcher);
+        toggleSeriesBlurState(ecData29.seriesIndex, ecData29.focus, ecData29.blurScope, ecIns, true);
         enterEmphasisWhenMouseOver(dispatcher, e);
         markStatusToUpdate(ecIns);
       }
@@ -21458,22 +21703,22 @@ ECharts.internalField = function() {
       const el = e.target;
       const dispatcher = getDispatcher(el, isHighDownDispatcher);
       if (dispatcher) {
-        const ecData = getECData3(dispatcher);
-        toggleSeriesBlurState(ecData.seriesIndex, ecData.focus, ecData.blurScope, ecIns, false);
+        const ecData29 = getECData(dispatcher);
+        toggleSeriesBlurState(ecData29.seriesIndex, ecData29.focus, ecData29.blurScope, ecIns, false);
         leaveEmphasisWhenMouseOut(dispatcher, e);
         markStatusToUpdate(ecIns);
       }
     }).on("click", function(e) {
       const el = e.target;
-      const dispatcher = getDispatcher(el, (target) => getECData3(target).dataIndex != null);
+      const dispatcher = getDispatcher(el, (target) => getECData(target).dataIndex != null);
       if (dispatcher) {
         const actionType = dispatcher.selected ? "unselect" : "select";
-        const ecData = getECData3(dispatcher);
+        const ecData29 = getECData(dispatcher);
         ecIns._api.dispatchAction({
           type: actionType,
-          dataType: ecData.dataType,
-          dataIndexInside: ecData.dataIndex,
-          seriesIndex: ecData.seriesIndex,
+          dataType: ecData29.dataType,
+          dataIndexInside: ecData29.dataIndex,
+          seriesIndex: ecData29.seriesIndex,
           isFromClick: true
         });
       }
@@ -21608,7 +21853,7 @@ ECharts.internalField = function() {
   ;
   function updateBlend(seriesModel, chartView) {
     const blendMode = seriesModel.get("blendMode") || null;
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!env_default.canvasSupported && blendMode && blendMode !== "source-over") {
         console.warn("Only canvas support blendMode");
       }
@@ -21803,7 +22048,7 @@ echartsProto.one = function(eventName, cb, ctx) {
 };
 const MOUSE_EVENT_NAMES = ["click", "dblclick", "mouseover", "mouseout", "mousemove", "mousedown", "mouseup", "globalout", "contextmenu"];
 function disposedWarning(id) {
-  if (__DEV__) {
+  if ('_DEV_') {
     console.warn("Instance " + id + " has been disposed");
   }
 }
@@ -21821,7 +22066,7 @@ let idBase = +new Date() - 0;
 let groupIdBase = +new Date() - 0;
 const DOM_ATTRIBUTE_KEY = "_echarts_instance_";
 function init3(dom2, theme2, opts) {
-  if (__DEV__) {
+  if ('_DEV_') {
     if (+version.replace(".", "") < +dependencies.zrender.replace(".", "")) {
       throw new Error("zrender/src " + version + " is too old for ECharts " + version2 + ". Current version need ZRender " + dependencies.zrender + "+");
     }
@@ -21831,12 +22076,12 @@ function init3(dom2, theme2, opts) {
   }
   const existInstance = getInstanceByDom(dom2);
   if (existInstance) {
-    if (__DEV__) {
+    if ('_DEV_') {
       console.warn("There is a chart instance already initialized on the dom.");
     }
     return existInstance;
   }
-  if (__DEV__) {
+  if ('_DEV_') {
     if (isDom(dom2) && dom2.nodeName.toUpperCase() !== "CANVAS" && (!dom2.clientWidth && (!opts || opts.width == null) || !dom2.clientHeight && (!opts || opts.height == null))) {
       console.warn("Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.");
     }
@@ -21936,7 +22181,7 @@ function normalizeRegister(targetList, priority, fn, defaultPriority, visualType
     fn = priority;
     priority = defaultPriority;
   }
-  if (__DEV__) {
+  if ('_DEV_') {
     if (isNaN(priority) || priority == null) {
       throw new Error("Illegal priority");
     }
@@ -22114,7 +22359,7 @@ function summarizeDimensions(data) {
     const dimItem = data.getDimensionInfo(dimName);
     const coordDim = dimItem.coordDim;
     if (coordDim) {
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(VISUAL_DIMENSIONS.get(coordDim) == null);
       }
       const coordDimIndex = dimItem.coordDimIndex;
@@ -22300,7 +22545,7 @@ class List124 {
     if (notProvider) {
       data = new DefaultDataProvider(data, this.dimensions.length);
     }
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!notProvider && (typeof data.getItem !== "function" || typeof data.count !== "function")) {
         throw new Error("Inavlid data provider.");
       }
@@ -22327,7 +22572,7 @@ class List124 {
     return this._rawData;
   }
   appendData(data) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(!this._indices, "appendData can only be called on raw data.");
     }
     const rawData = this._rawData;
@@ -22615,7 +22860,7 @@ class List124 {
   }
   rawIndexOf(dim, value) {
     const invertedIndices = dim && this._invertedIndicesMap[dim];
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!invertedIndices) {
         throw new Error("Do not supported yet");
       }
@@ -22722,7 +22967,7 @@ class List124 {
     }
     const fCtx = ctx || ctxCompat || this;
     const dimNames = map2(normalizeDimensions(dims), this.getDimension, this);
-    if (__DEV__) {
+    if ('_DEV_') {
       validateDimensions(this, dimNames);
     }
     const dimSize = dimNames.length;
@@ -22761,7 +23006,7 @@ class List124 {
     }
     const fCtx = ctx || ctxCompat || this;
     const dimNames = map2(normalizeDimensions(dims), this.getDimension, this);
-    if (__DEV__) {
+    if ('_DEV_') {
       validateDimensions(this, dimNames);
     }
     const count2 = this.count();
@@ -22810,7 +23055,7 @@ class List124 {
         dimensions.push(dim);
       }
     }
-    if (__DEV__) {
+    if ('_DEV_') {
       validateDimensions(this, dimensions);
     }
     const dimSize = dimensions.length;
@@ -22915,7 +23160,7 @@ class List124 {
     "use strict";
     const fCtx = ctx || ctxCompat || this;
     const dimNames = map2(normalizeDimensions(dims), this.getDimension, this);
-    if (__DEV__) {
+    if ('_DEV_') {
       validateDimensions(this, dimNames);
     }
     const list = cloneListForMapAndSample(this, dimNames);
@@ -23091,10 +23336,10 @@ class List124 {
   setItemGraphicEl(idx, el) {
     const hostModel = this.hostModel;
     if (el) {
-      const ecData = getECData(el);
-      ecData.dataIndex = idx;
-      ecData.dataType = this.dataType;
-      ecData.seriesIndex = hostModel && hostModel.seriesIndex;
+      const ecData29 = getECData(el);
+      ecData29.dataIndex = idx;
+      ecData29.dataType = this.dataType;
+      ecData29.seriesIndex = hostModel && hostModel.seriesIndex;
       if (el.type === "group") {
         el.traverse(setItemDataAndSeriesIndex, el);
       }
@@ -23500,7 +23745,7 @@ const fetchers = {
   cartesian2d: function(seriesModel, result, axisMap, categoryAxisMap) {
     const xAxisModel = seriesModel.getReferringComponents("xAxis", SINGLE_REFERRING).models[0];
     const yAxisModel = seriesModel.getReferringComponents("yAxis", SINGLE_REFERRING).models[0];
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!xAxisModel) {
         throw new Error('xAxis "' + retrieve(seriesModel.get("xAxisIndex"), seriesModel.get("xAxisId"), 0) + '" not found');
       }
@@ -23522,7 +23767,7 @@ const fetchers = {
   },
   singleAxis: function(seriesModel, result, axisMap, categoryAxisMap) {
     const singleAxisModel = seriesModel.getReferringComponents("singleAxis", SINGLE_REFERRING).models[0];
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!singleAxisModel) {
         throw new Error("singleAxis should be specified.");
       }
@@ -23538,7 +23783,7 @@ const fetchers = {
     const polarModel = seriesModel.getReferringComponents("polar", SINGLE_REFERRING).models[0];
     const radiusAxisModel = polarModel.findAxisModel("radiusAxis");
     const angleAxisModel = polarModel.findAxisModel("angleAxis");
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!angleAxisModel) {
         throw new Error("angleAxis option not found");
       }
@@ -23862,7 +24107,7 @@ function fixExtent(niceTickExtent, extent3) {
 function contain3(val, extent3) {
   return val >= extent3[0] && val <= extent3[1];
 }
-function normalize5(val, extent3) {
+function normalize4(val, extent3) {
   if (extent3[1] === extent3[0]) {
     return 0.5;
   }
@@ -23873,7 +24118,7 @@ function scale3(val, extent3) {
 }
 
 // src/scale/Ordinal.ts
-class OrdinalScale6 extends Scale_default {
+class OrdinalScale7 extends Scale_default {
   constructor(setting) {
     super(setting);
     this.type = "ordinal";
@@ -23896,7 +24141,7 @@ class OrdinalScale6 extends Scale_default {
   }
   normalize(val) {
     val = this.getCategoryIndex(this.parse(val));
-    return normalize5(val, this._extent);
+    return normalize4(val, this._extent);
   }
   scale(val) {
     val = this.getCategoryIndex(val);
@@ -23907,7 +24152,9 @@ class OrdinalScale6 extends Scale_default {
     const extent3 = this._extent;
     let rank = extent3[0];
     while (rank <= extent3[1]) {
-      ticks.push(rank);
+      ticks.push({
+        value: rank
+      });
       rank++;
     }
     return ticks;
@@ -23928,9 +24175,9 @@ class OrdinalScale6 extends Scale_default {
       return n;
     }
   }
-  getLabel(n) {
+  getLabel(tick) {
     if (!this.isBlank()) {
-      const cateogry = this._ordinalMeta.categories[n];
+      const cateogry = this._ordinalMeta.categories[tick.value];
       return cateogry == null ? "" : cateogry + "";
     }
   }
@@ -23948,9 +24195,9 @@ class OrdinalScale6 extends Scale_default {
   niceExtent() {
   }
 }
-OrdinalScale6.type = "ordinal";
-Scale_default.registerClass(OrdinalScale6);
-const Ordinal_default = OrdinalScale6;
+OrdinalScale7.type = "ordinal";
+Scale_default.registerClass(OrdinalScale7);
+const Ordinal_default = OrdinalScale7;
 
 // src/scale/Interval.ts
 const roundNumber = round2;
@@ -23968,7 +24215,7 @@ class IntervalScale2 extends Scale_default {
     return contain3(val, this._extent);
   }
   normalize(val) {
-    return normalize5(val, this._extent);
+    return normalize4(val, this._extent);
   }
   scale(val) {
     return scale3(val, this._extent);
@@ -24008,28 +24255,38 @@ class IntervalScale2 extends Scale_default {
     const safeLimit = 10000;
     if (extent3[0] < niceTickExtent[0]) {
       if (expandToNicedExtent) {
-        ticks.push(roundNumber(niceTickExtent[0] - interval, intervalPrecision));
+        ticks.push({
+          value: roundNumber(niceTickExtent[0] - interval, intervalPrecision)
+        });
       } else {
-        ticks.push(extent3[0]);
+        ticks.push({
+          value: extent3[0]
+        });
       }
     }
     let tick = niceTickExtent[0];
     while (tick <= niceTickExtent[1]) {
-      ticks.push(tick);
+      ticks.push({
+        value: tick
+      });
       tick = roundNumber(tick + interval, intervalPrecision);
-      if (tick === ticks[ticks.length - 1]) {
+      if (tick === ticks[ticks.length - 1].value) {
         break;
       }
       if (ticks.length > safeLimit) {
         return [];
       }
     }
-    const lastNiceTick = ticks.length ? ticks[ticks.length - 1] : niceTickExtent[1];
+    const lastNiceTick = ticks.length ? ticks[ticks.length - 1].value : niceTickExtent[1];
     if (extent3[1] > lastNiceTick) {
       if (expandToNicedExtent) {
-        ticks.push(roundNumber(lastNiceTick + interval, intervalPrecision));
+        ticks.push({
+          value: roundNumber(lastNiceTick + interval, intervalPrecision)
+        });
       } else {
-        ticks.push(extent3[1]);
+        ticks.push({
+          value: extent3[1]
+        });
       }
     }
     return ticks;
@@ -24043,10 +24300,10 @@ class IntervalScale2 extends Scale_default {
       const prevTick = ticks[i - 1];
       let count2 = 0;
       const minorTicksGroup = [];
-      const interval = nextTick - prevTick;
+      const interval = nextTick.value - prevTick.value;
       const minorInterval = interval / splitNumber;
       while (count2 < splitNumber - 1) {
-        const minorTick = roundNumber(prevTick + (count2 + 1) * minorInterval);
+        const minorTick = roundNumber(prevTick.value + (count2 + 1) * minorInterval);
         if (minorTick > extent3[0] && minorTick < extent3[1]) {
           minorTicksGroup.push(minorTick);
         }
@@ -24062,11 +24319,11 @@ class IntervalScale2 extends Scale_default {
     }
     let precision = opt && opt.precision;
     if (precision == null) {
-      precision = getPrecisionSafe(data) || 0;
+      precision = getPrecisionSafe(data.value) || 0;
     } else if (precision === "auto") {
       precision = this._intervalPrecision;
     }
-    const dataNum = roundNumber(data, precision, true);
+    const dataNum = roundNumber(data.value, precision, true);
     return addCommas(dataNum);
   }
   niceTicks(splitNumber, minInterval, maxInterval) {
@@ -24502,12 +24759,6 @@ function getValueAxisStart(baseAxis, valueAxis2, stacked) {
 }
 
 // src/scale/Time.ts
-const mathCeil3 = Math.ceil;
-const mathFloor3 = Math.floor;
-const ONE_SECOND = 1000;
-const ONE_MINUTE = ONE_SECOND * 60;
-const ONE_HOUR = ONE_MINUTE * 60;
-const ONE_DAY = ONE_HOUR * 24;
 const bisect = function(a, x, lo, hi) {
   while (lo < hi) {
     const mid = lo + hi >>> 1;
@@ -24524,10 +24775,33 @@ class TimeScale extends Interval_default {
     super(...arguments);
     this.type = "time";
   }
-  getLabel(val) {
-    const stepLvl = this._stepLvl;
-    const date = new Date(val);
-    return formatTime(stepLvl[0], date, this.getSetting("useUTC"));
+  getLabel(tick) {
+    const useUTC = this.getSetting("useUTC");
+    return format16(tick.value, fullLeveledFormatter[getDefaultFormatPrecisionOfInterval(getPrimaryTimeUnit(this._intervalUnit))] || fullLeveledFormatter.second, useUTC);
+  }
+  getFormattedLabel(tick, idx, labelFormatter) {
+    const isUTC = this.getSetting("useUTC");
+    return leveledFormat(tick, idx, labelFormatter, isUTC);
+  }
+  getTicks(expandToNicedExtent) {
+    const interval = this._interval;
+    const extent3 = this._extent;
+    let ticks = [];
+    if (!interval) {
+      return ticks;
+    }
+    ticks.push({
+      value: extent3[0],
+      level: 0
+    });
+    const useUTC = this.getSetting("useUTC");
+    const innerTicks = getIntervalTicks(this._intervalUnit, this._approxInterval, useUTC, extent3);
+    ticks = ticks.concat(innerTicks);
+    ticks.push({
+      value: extent3[1],
+      level: 0
+    });
+    return ticks;
   }
   niceExtent(opt) {
     const extent3 = this._extent;
@@ -24541,40 +24815,23 @@ class TimeScale extends Interval_default {
       extent3[0] = extent3[1] - ONE_DAY;
     }
     this.niceTicks(opt.splitNumber, opt.minInterval, opt.maxInterval);
-    const interval = this._interval;
-    if (!opt.fixMin) {
-      extent3[0] = round2(mathFloor3(extent3[0] / interval) * interval);
-    }
-    if (!opt.fixMax) {
-      extent3[1] = round2(mathCeil3(extent3[1] / interval) * interval);
-    }
   }
   niceTicks(approxTickNum, minInterval, maxInterval) {
     approxTickNum = approxTickNum || 10;
     const extent3 = this._extent;
     const span = extent3[1] - extent3[0];
-    let approxInterval = span / approxTickNum;
-    if (minInterval != null && approxInterval < minInterval) {
-      approxInterval = minInterval;
+    this._approxInterval = span / approxTickNum;
+    if (minInterval != null && this._approxInterval < minInterval) {
+      this._approxInterval = minInterval;
     }
-    if (maxInterval != null && approxInterval > maxInterval) {
-      approxInterval = maxInterval;
+    if (maxInterval != null && this._approxInterval > maxInterval) {
+      this._approxInterval = maxInterval;
     }
-    const scaleLevelsLen = scaleLevels.length;
-    const idx = bisect(scaleLevels, approxInterval, 0, scaleLevelsLen);
-    const level = scaleLevels[Math.min(idx, scaleLevelsLen - 1)];
-    let interval = level[1];
-    if (level[0] === "year") {
-      const yearSpan = span / interval;
-      const yearStep = nice(yearSpan / approxTickNum, true);
-      interval *= yearStep;
-    }
-    const timezoneOffset = this.getSetting("useUTC") ? 0 : new Date(+extent3[0] || +extent3[1]).getTimezoneOffset() * 60 * 1000;
-    const niceExtent = [Math.round(mathCeil3((extent3[0] - timezoneOffset) / interval) * interval + timezoneOffset), Math.round(mathFloor3((extent3[1] - timezoneOffset) / interval) * interval + timezoneOffset)];
-    fixExtent(niceExtent, extent3);
-    this._stepLvl = level;
-    this._interval = interval;
-    this._niceExtent = niceExtent;
+    const scaleIntervalsLen = scaleIntervals.length;
+    const idx = bisect(scaleIntervals, this._approxInterval, 0, scaleIntervalsLen);
+    const intervals = scaleIntervals[Math.max(Math.min(idx, scaleIntervalsLen - 1), 0)];
+    this._interval = intervals[1];
+    this._intervalUnit = intervals[0];
   }
   parse(val) {
     return +parseDate(val);
@@ -24583,14 +24840,220 @@ class TimeScale extends Interval_default {
     return contain3(this.parse(val), this._extent);
   }
   normalize(val) {
-    return normalize5(this.parse(val), this._extent);
+    return normalize4(this.parse(val), this._extent);
   }
   scale(val) {
     return scale3(val, this._extent);
   }
 }
 TimeScale.type = "time";
-const scaleLevels = [["hh:mm:ss", ONE_SECOND], ["hh:mm:ss", ONE_SECOND * 5], ["hh:mm:ss", ONE_SECOND * 10], ["hh:mm:ss", ONE_SECOND * 15], ["hh:mm:ss", ONE_SECOND * 30], ["hh:mm\nMM-dd", ONE_MINUTE], ["hh:mm\nMM-dd", ONE_MINUTE * 5], ["hh:mm\nMM-dd", ONE_MINUTE * 10], ["hh:mm\nMM-dd", ONE_MINUTE * 15], ["hh:mm\nMM-dd", ONE_MINUTE * 30], ["hh:mm\nMM-dd", ONE_HOUR], ["hh:mm\nMM-dd", ONE_HOUR * 2], ["hh:mm\nMM-dd", ONE_HOUR * 6], ["hh:mm\nMM-dd", ONE_HOUR * 12], ["MM-dd\nyyyy", ONE_DAY], ["MM-dd\nyyyy", ONE_DAY * 2], ["MM-dd\nyyyy", ONE_DAY * 3], ["MM-dd\nyyyy", ONE_DAY * 4], ["MM-dd\nyyyy", ONE_DAY * 5], ["MM-dd\nyyyy", ONE_DAY * 6], ["week", ONE_DAY * 7], ["MM-dd\nyyyy", ONE_DAY * 10], ["week", ONE_DAY * 14], ["week", ONE_DAY * 21], ["month", ONE_DAY * 31], ["week", ONE_DAY * 42], ["month", ONE_DAY * 62], ["week", ONE_DAY * 70], ["quarter", ONE_DAY * 95], ["month", ONE_DAY * 31 * 4], ["month", ONE_DAY * 31 * 5], ["half-year", ONE_DAY * 380 / 2], ["month", ONE_DAY * 31 * 8], ["month", ONE_DAY * 31 * 10], ["year", ONE_DAY * 380]];
+const scaleIntervals = [["second", ONE_SECOND], ["minute", ONE_MINUTE], ["hour", ONE_HOUR], ["quarter-day", ONE_HOUR * 6], ["half-day", ONE_HOUR * 12], ["day", ONE_DAY * 1.2], ["half-week", ONE_DAY * 3.5], ["week", ONE_DAY * 7], ["month", ONE_DAY * 31], ["quarter", ONE_DAY * 95], ["half-year", ONE_YEAR / 2], ["year", ONE_YEAR]];
+function isUnitValueSame(unit, valueA, valueB, isUTC) {
+  const dateA = parseDate(valueA);
+  const dateB = parseDate(valueB);
+  const isSame = (unit2) => {
+    return getUnitValue(dateA, unit2, isUTC) === getUnitValue(dateB, unit2, isUTC);
+  };
+  const isSameYear = () => isSame("year");
+  const isSameMonth = () => isSameYear() && isSame("month");
+  const isSameDay = () => isSameMonth() && isSame("day");
+  const isSameHour = () => isSameDay() && isSame("hour");
+  const isSameMinute = () => isSameHour() && isSame("minute");
+  const isSameSecond = () => isSameMinute() && isSame("second");
+  const isSameMilliSecond = () => isSameSecond() && isSame("millisecond");
+  switch (unit) {
+    case "year":
+      return isSameYear();
+    case "month":
+      return isSameMonth();
+    case "day":
+      return isSameDay();
+    case "hour":
+      return isSameHour();
+    case "minute":
+      return isSameMinute();
+    case "second":
+      return isSameSecond();
+    case "millisecond":
+      return isSameMilliSecond();
+  }
+}
+function getIntervalTicks(unitName, approxInterval, isUTC, extent3) {
+  const safeLimit = 10000;
+  const utc = isUTC ? "UTC" : "";
+  const ticks = [];
+  const unitNames = timeUnits;
+  let levelId = 0;
+  const setFullYearMethodName = "set" + utc + "FullYear";
+  const setMonthMethodName = "set" + utc + "Month";
+  const setDateMethodName = "set" + utc + "Date";
+  const setHoursMethodName = "set" + utc + "Hours";
+  const setMinutesMethodName = "set" + utc + "Minutes";
+  const setSecondsMethodName = "set" + utc + "Seconds";
+  const setMillisecondsMethodName = "set" + utc + "Milliseconds";
+  const getFullYearMethodName = "get" + utc + "FullYear";
+  const getMonthMethodName = "get" + utc + "Month";
+  const getDateMethodName = "get" + utc + "Date";
+  const getHoursMethodName = "get" + utc + "Hours";
+  const getMinutesMethodName = "get" + utc + "Minutes";
+  const getSecondsMethodName = "get" + utc + "Seconds";
+  const getMillisecondsMethodName = "get" + utc + "Milliseconds";
+  let iter = 0;
+  for (let i = 0, hasTickInLevel = false; i < unitNames.length && iter++ < safeLimit; ++i) {
+    const date = new Date(extent3[0]);
+    if (unitNames[i] === "week" || unitNames[i] === "half-week") {
+      date[setHoursMethodName](0);
+      date[setMinutesMethodName](0);
+      date[setSecondsMethodName](0);
+      date[setMillisecondsMethodName](0);
+      if (extent3[0] === date.getTime()) {
+        ticks.push({
+          value: extent3[0],
+          level: levelId
+        });
+        hasTickInLevel = true;
+      }
+      let isDateWithinExtent = true;
+      while (isDateWithinExtent && iter++ < safeLimit) {
+        const dates = approxInterval > ONE_DAY * 8 ? [] : approxInterval > ONE_DAY * 3.5 ? [8, 16, 24] : [4, 8, 12, 16, 20, 24, 28];
+        for (let d = 0; d < dates.length; ++d) {
+          date[setDateMethodName](dates[d]);
+          const dateTime = date.getTime();
+          if (dateTime > extent3[1]) {
+            isDateWithinExtent = false;
+            break;
+          } else if (dateTime >= extent3[0]) {
+            ticks.push({
+              value: dateTime,
+              level: levelId
+            });
+            hasTickInLevel = true;
+          }
+        }
+        date[setMonthMethodName](date[getMonthMethodName]() + 1);
+      }
+    } else if (!isUnitValueSame(getPrimaryTimeUnit(unitNames[i]), extent3[0], extent3[1], isUTC)) {
+      let isFirst = true;
+      while (iter++ < safeLimit) {
+        switch (unitNames[i]) {
+          case "year":
+          case "half-year":
+          case "quarter":
+            if (isFirst) {
+              date[setMonthMethodName](0);
+              date[setDateMethodName](1);
+              date[setHoursMethodName](0);
+              date[setMinutesMethodName](0);
+              date[setSecondsMethodName](0);
+            } else {
+              const months = unitNames[i] === "year" ? 12 : unitNames[i] === "half-year" ? 6 : 3;
+              if (unitNames[i] === "half-year" || unitNames[i] === "quarter") {
+                date[setMonthMethodName](date[getMonthMethodName]() + months);
+              } else {
+                const yearSpan = Math.max(1, Math.round(approxInterval / ONE_DAY / 365));
+                date[setFullYearMethodName](date[getFullYearMethodName]() + yearSpan);
+                if (date.getTime() > extent3[1] && yearSpan > 1) {
+                  date[setFullYearMethodName](date[getFullYearMethodName]() - yearSpan + 1);
+                  if (date.getTime() < extent3[1]) {
+                    date[setFullYearMethodName](date[getFullYearMethodName]() + yearSpan);
+                  }
+                }
+              }
+            }
+            break;
+          case "month":
+            if (isFirst) {
+              date[setDateMethodName](1);
+              date[setHoursMethodName](0);
+              date[setMinutesMethodName](0);
+              date[setSecondsMethodName](0);
+            } else {
+              date[setMonthMethodName](date[getMonthMethodName]() + 1);
+            }
+            break;
+          case "day":
+          case "half-day":
+          case "quarter-day":
+            if (isFirst) {
+              date[setHoursMethodName](0);
+              date[setMinutesMethodName](0);
+              date[setSecondsMethodName](0);
+            } else if (unitNames[i] === "half-day") {
+              date[setHoursMethodName](date[getHoursMethodName]() + 12);
+            } else if (unitNames[i] === "quarter-day") {
+              date[setHoursMethodName](date[getHoursMethodName]() + 6);
+            } else {
+              date[setDateMethodName](date[getDateMethodName]() + 1);
+            }
+            break;
+          case "hour":
+            if (isFirst) {
+              date[setMinutesMethodName](0);
+              date[setSecondsMethodName](0);
+            } else {
+              date[setHoursMethodName](date[getHoursMethodName]() + 1);
+            }
+            break;
+          case "minute":
+            if (isFirst) {
+              date[setMinutesMethodName](0);
+              date[setSecondsMethodName](0);
+            } else {
+              date[setMinutesMethodName](date[getMinutesMethodName]() + 1);
+            }
+            break;
+          case "second":
+            if (!isFirst) {
+              date[setSecondsMethodName](date[getSecondsMethodName]() + 1);
+            }
+            break;
+          case "millisecond":
+            if (isFirst) {
+              date[setMillisecondsMethodName](0);
+            } else {
+              date[setMillisecondsMethodName](date[getMillisecondsMethodName]() + 100);
+            }
+            break;
+        }
+        if (isFirst && unitNames[i] !== "millisecond") {
+          date[setMillisecondsMethodName](0);
+        }
+        const dateValue = date.getTime();
+        if (dateValue >= extent3[0] && dateValue <= extent3[1]) {
+          ticks.push({
+            value: dateValue,
+            level: levelId
+          });
+          hasTickInLevel = true;
+        } else if (dateValue > extent3[1]) {
+          break;
+        }
+        isFirst = false;
+      }
+      if (hasTickInLevel && isPrimaryTimeUnit(unitNames[i])) {
+        ++levelId;
+      }
+    }
+    if (unitNames[i] === unitName) {
+      break;
+    }
+  }
+  ticks.sort((a, b) => a.value - b.value);
+  let maxLevel = -Number.MAX_VALUE;
+  for (let i = 0; i < ticks.length; ++i) {
+    maxLevel = Math.max(maxLevel, ticks[i].level);
+  }
+  const result = [];
+  for (let i = 0; i < ticks.length; ++i) {
+    if (i === 0 || ticks[i].value !== ticks[i - 1].value) {
+      result.push({
+        value: ticks[i].value,
+        level: maxLevel - ticks[i].level
+      });
+    }
+  }
+  return result;
+}
 Scale_default.registerClass(TimeScale);
 const Time_default = TimeScale;
 
@@ -24616,11 +25079,14 @@ class LogScale extends Scale_default {
     const extent3 = this._extent;
     const originalExtent = originalScale.getExtent();
     const ticks = intervalScaleProto.getTicks.call(this, expandToNicedExtent);
-    return map2(ticks, function(val) {
+    return map2(ticks, function(tick) {
+      const val = tick.value;
       let powVal = round2(mathPow3(this.base, val));
       powVal = val === extent3[0] && this._fixMin ? fixRoundingError(powVal, originalExtent[0]) : powVal;
       powVal = val === extent3[1] && this._fixMax ? fixRoundingError(powVal, originalExtent[1]) : powVal;
-      return powVal;
+      return {
+        value: powVal
+      };
     }, this);
   }
   setExtent(start2, end2) {
@@ -24683,7 +25149,7 @@ class LogScale extends Scale_default {
   }
   normalize(val) {
     val = mathLog(val) / mathLog(this.base);
-    return normalize5(val, this._extent);
+    return normalize4(val, this._extent);
   }
   scale(val) {
     val = scale3(val, this._extent);
@@ -24737,7 +25203,7 @@ class ScaleRawExtentInfo2 {
       const boundaryGap = model65.get("boundaryGap");
       const boundaryGapArr = isArray(boundaryGap) ? boundaryGap : [boundaryGap || 0, boundaryGap || 0];
       if (typeof boundaryGapArr[0] === "boolean" || typeof boundaryGapArr[1] === "boolean") {
-        if (__DEV__) {
+        if ('_DEV_') {
           console.warn('Boolean type for boundaryGap is only allowed for ordinal axis. Please use string in percentage instead, e.g., "20%". Currently, boundaryGap is set to be 0.');
         }
         this._boundaryGapInner = [0, 0];
@@ -24797,14 +25263,14 @@ class ScaleRawExtentInfo2 {
     };
   }
   modifyDataMinMax(minMaxName, val) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(!this.frozen);
     }
     this[DATA_MIN_MAX_ATTR[minMaxName]] = val;
   }
   setDeterminedMinMax(minMaxName, val) {
     const attr2 = DETERMINED_MIN_MAX_ATTR[minMaxName];
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(!this.frozen && this[attr2] == null);
     }
     this[attr2] = val;
@@ -24940,20 +25406,29 @@ function ifAxisCrossZero(axis2) {
 function makeLabelFormatter(axis2) {
   const labelFormatter = axis2.getLabelModel().get("formatter");
   const categoryTickStart = axis2.type === "category" ? axis2.scale.getExtent()[0] : null;
-  if (typeof labelFormatter === "string") {
+  if (axis2.scale.type === "time") {
     return function(tpl) {
-      return function(val) {
-        val = axis2.scale.getLabel(val);
-        return tpl.replace("{value}", val != null ? val : "");
+      return function(tick, idx) {
+        return axis2.scale.getFormattedLabel(tick, idx, tpl);
+      };
+    }(labelFormatter);
+  } else if (typeof labelFormatter === "string") {
+    return function(tpl) {
+      return function(tick) {
+        const label = axis2.scale.getLabel(tick);
+        const text11 = tpl.replace("{value}", label != null ? label : "");
+        return text11;
       };
     }(labelFormatter);
   } else if (typeof labelFormatter === "function") {
     return function(cb) {
-      return function(tickValue, idx) {
+      return function(tick, idx) {
         if (categoryTickStart != null) {
-          idx = tickValue - categoryTickStart;
+          idx = tick.value - categoryTickStart;
         }
-        return cb(getAxisRawValue(axis2, tickValue), idx);
+        return cb(getAxisRawValue(axis2, tick), idx, tick.level != null ? {
+          level: tick.level
+        } : null);
       };
     }(labelFormatter);
   } else {
@@ -24962,8 +25437,8 @@ function makeLabelFormatter(axis2) {
     };
   }
 }
-function getAxisRawValue(axis2, value) {
-  return axis2.type === "category" ? axis2.scale.getLabel(value) : value;
+function getAxisRawValue(axis2, tick) {
+  return axis2.type === "category" ? axis2.scale.getLabel(tick) : tick.value;
 }
 function estimateLabelUnionRect(axis2) {
   const axisModel = axis2.model;
@@ -24988,8 +25463,10 @@ function estimateLabelUnionRect(axis2) {
     step2 = Math.ceil(tickCount / 40);
   }
   for (let i = 0; i < tickCount; i += step2) {
-    const tickValue = realNumberScaleTicks ? realNumberScaleTicks[i] : categoryScaleExtent[0] + i;
-    const label = labelFormatter(tickValue, i);
+    const tick = realNumberScaleTicks ? realNumberScaleTicks[i] : {
+      value: categoryScaleExtent[0] + i
+    };
+    const label = labelFormatter(tick, i);
     const unrotatedSingleRect = axisLabelModel.getTextRect(label);
     const singleRect = rotateTextRect(unrotatedSingleRect, axisLabelModel.get("rotate") || 0);
     rect ? rect.union(singleRect) : rect = singleRect;
@@ -25213,10 +25690,10 @@ const SymbolClz = Path_default.extend({
     width: 0,
     height: 0
   },
-  calculateTextPosition(out2, config58, rect) {
-    const res = calculateTextPosition(out2, config58, rect);
+  calculateTextPosition(out2, config7, rect) {
+    const res = calculateTextPosition(out2, config7, rect);
     const shape = this.shape;
-    if (shape && shape.symbolType === "pin" && config58.position === "inside") {
+    if (shape && shape.symbolType === "pin" && config7.position === "inside") {
       res.y = rect.y + rect.height * 0.4;
     }
     return res;
@@ -25525,7 +26002,7 @@ function createAxisLabels(axis2) {
 }
 function createAxisTicks(axis2, tickModel) {
   return axis2.type === "category" ? makeCategoryTicks(axis2, tickModel) : {
-    ticks: axis2.scale.getTicks()
+    ticks: map2(axis2.scale.getTicks(), (tick) => tick.value)
   };
 }
 function makeCategoryLabels(axis2) {
@@ -25589,11 +26066,11 @@ function makeRealNumberLabels(axis2) {
   const ticks = axis2.scale.getTicks();
   const labelFormatter = makeLabelFormatter(axis2);
   return {
-    labels: map2(ticks, function(tickValue, idx) {
+    labels: map2(ticks, function(tick, idx) {
       return {
-        formattedLabel: labelFormatter(tickValue, idx),
-        rawLabel: axis2.scale.getLabel(tickValue),
-        tickValue
+        formattedLabel: labelFormatter(tick, idx),
+        rawLabel: axis2.scale.getLabel(tick),
+        tickValue: tick.value
       };
     })
   };
@@ -25642,7 +26119,9 @@ function calculateCategoryInterval(axis2) {
   for (; tickValue <= ordinalExtent[1]; tickValue += step2) {
     let width = 0;
     let height = 0;
-    const rect = getBoundingRect(labelFormatter(tickValue), params.font, "center", "top");
+    const rect = getBoundingRect(labelFormatter({
+      value: tickValue
+    }), params.font, "center", "top");
     width = rect.width * 1.3;
     height = rect.height * 1.3;
     maxW = Math.max(maxW, width, 7);
@@ -25657,13 +26136,13 @@ function calculateCategoryInterval(axis2) {
   const axisExtent = axis2.getExtent();
   const lastAutoInterval = cache.lastAutoInterval;
   const lastTickCount = cache.lastTickCount;
-  if (lastAutoInterval != null && lastTickCount != null && Math.abs(lastAutoInterval - interval) <= 1 && Math.abs(lastTickCount - tickCount) <= 1 && lastAutoInterval > interval && cache.axisExtend0 === axisExtent[0] && cache.axisExtend1 === axisExtent[1]) {
+  if (lastAutoInterval != null && lastTickCount != null && Math.abs(lastAutoInterval - interval) <= 1 && Math.abs(lastTickCount - tickCount) <= 1 && lastAutoInterval > interval && cache.axisExtent0 === axisExtent[0] && cache.axisExtent1 === axisExtent[1]) {
     interval = lastAutoInterval;
   } else {
     cache.lastTickCount = tickCount;
     cache.lastAutoInterval = interval;
-    cache.axisExtend0 = axisExtent[0];
-    cache.axisExtend1 = axisExtent[1];
+    cache.axisExtent0 = axisExtent[0];
+    cache.axisExtent1 = axisExtent[1];
   }
   return interval;
 }
@@ -25700,11 +26179,14 @@ function makeLabelsByNumericCategoryInterval(axis2, categoryInterval, onlyTick) 
   if (includeMaxLabel && tickValue - step2 !== ordinalExtent[1]) {
     addItem(ordinalExtent[1]);
   }
-  function addItem(tVal) {
-    result.push(onlyTick ? tVal : {
-      formattedLabel: labelFormatter(tVal),
-      rawLabel: ordinalScale.getLabel(tVal),
-      tickValue: tVal
+  function addItem(tickValue2) {
+    const tickObj = {
+      value: tickValue2
+    };
+    result.push(onlyTick ? tickValue2 : {
+      formattedLabel: labelFormatter(tickObj),
+      rawLabel: ordinalScale.getLabel(tickObj),
+      tickValue: tickValue2
     });
   }
   return result;
@@ -25713,11 +26195,12 @@ function makeLabelsByCustomizedCategoryInterval(axis2, categoryInterval, onlyTic
   const ordinalScale = axis2.scale;
   const labelFormatter = makeLabelFormatter(axis2);
   const result = [];
-  each(ordinalScale.getTicks(), function(tickValue) {
-    const rawLabel = ordinalScale.getLabel(tickValue);
-    if (categoryInterval(tickValue, rawLabel)) {
+  each(ordinalScale.getTicks(), function(tick) {
+    const rawLabel = ordinalScale.getLabel(tick);
+    const tickValue = tick.value;
+    if (categoryInterval(tick.value, rawLabel)) {
       result.push(onlyTick ? tickValue : {
-        formattedLabel: labelFormatter(tickValue),
+        formattedLabel: labelFormatter(tick),
         rawLabel,
         tickValue
       });
@@ -25784,10 +26267,10 @@ class Axis14 {
     const tickModel = opt.tickModel || this.getTickModel();
     const result = createAxisTicks(this, tickModel);
     const ticks = result.ticks;
-    const ticksCoords = map2(ticks, function(tickValue) {
+    const ticksCoords = map2(ticks, function(tickVal) {
       return {
-        coord: this.dataToCoord(tickValue),
-        tickValue: this.scale instanceof Ordinal_default ? this.scale.getCategoryIndex(tickValue) : tickValue
+        coord: this.dataToCoord(tickVal),
+        tickValue: this.scale instanceof Ordinal_default ? this.scale.getCategoryIndex(tickVal) : tickVal
       };
     }, this);
     const alignWithLabel = tickModel.get("alignWithLabel");
@@ -25900,9 +26383,9 @@ each(["map", "each", "filter", "indexOf", "inherits", "reduce", "filter", "bind"
   ecUtil[name] = util_exports[name];
 });
 const GRAPHIC_KEYS = ["extendShape", "extendPath", "makePath", "makeImage", "mergePath", "resizePath", "createIcon", "updateProps", "initProps", "getTransform", "clipPointsByRect", "clipRectByRect", "registerShape", "getShapeClass", "Group", "Image", "Text", "Circle", "Ellipse", "Sector", "Ring", "Polygon", "Polyline", "Rect", "Line", "BezierCurve", "Arc", "IncrementalDisplayable", "CompoundPath", "LinearGradient", "RadialGradient", "BoundingRect"];
-const graphic74 = {};
+const graphic69 = {};
 each(GRAPHIC_KEYS, function(name) {
-  graphic74[name] = graphic_exports[name];
+  graphic69[name] = graphic_exports[name];
 });
 
 // src/chart/line/LineSeries.ts
@@ -25914,7 +26397,7 @@ class LineSeriesModel extends Series_default {
     this.legendSymbol = "line";
   }
   getInitialData(option) {
-    if (__DEV__) {
+    if ('_DEV_') {
       const coordSys = option.coordinateSystem;
       if (coordSys !== "polar" && coordSys !== "cartesian2d") {
         throw new Error("Line not support coordinateSystem besides cartesian and polar");
@@ -26846,7 +27329,7 @@ function getVisualGradient(data, coordSys) {
     return;
   }
   if (coordSys.type !== "cartesian2d") {
-    if (__DEV__) {
+    if ('_DEV_') {
       console.warn("Visual map on line style is only supported on cartesian2d.");
     }
     return;
@@ -26864,7 +27347,7 @@ function getVisualGradient(data, coordSys) {
     }
   }
   if (!visualMeta) {
-    if (__DEV__) {
+    if ('_DEV_') {
       console.warn("Visual map on line style only support x or y dimension.");
     }
     return;
@@ -27446,7 +27929,7 @@ const defaultOption = {
     onZero: true,
     onZeroAxisIndex: null,
     lineStyle: {
-      color: "#333",
+      color: "#6E7079",
       width: 1,
       type: "solid"
     },
@@ -27473,7 +27956,7 @@ const defaultOption = {
   splitLine: {
     show: true,
     lineStyle: {
-      color: ["#ccc"],
+      color: ["#E0E6F1"],
       width: 1,
       type: "solid"
     }
@@ -27481,7 +27964,7 @@ const defaultOption = {
   splitArea: {
     show: false,
     areaStyle: {
-      color: ["rgba(250,250,250,0.3)", "rgba(200,200,200,0.3)"]
+      color: ["rgba(250,250,250,0.2)", "rgba(210,219,238,0.2)"]
     }
   }
 };
@@ -27501,6 +27984,12 @@ const categoryAxis = merge({
 }, defaultOption);
 const valueAxis = merge({
   boundaryGap: [0, 0],
+  axisLine: {
+    show: "auto"
+  },
+  axisTick: {
+    show: "auto"
+  },
   splitNumber: 5,
   minorTick: {
     show: false,
@@ -27516,10 +28005,20 @@ const valueAxis = merge({
     }
   }
 }, defaultOption);
-const timeAxis = defaults({
+const timeAxis = merge({
   scale: true,
-  min: "dataMin",
-  max: "dataMax"
+  axisLabel: {
+    showMinLabel: false,
+    showMaxLabel: false,
+    rich: {
+      primary: {
+        fontWeight: "bold"
+      }
+    }
+  },
+  splitLine: {
+    show: false
+  }
 }, valueAxis);
 const logAxis = defaults({
   scale: true,
@@ -27619,7 +28118,8 @@ class AxisBuilder2 {
       nameDirection: 1,
       tickDirection: 1,
       labelDirection: 1,
-      silent: true
+      silent: true,
+      handleAutoShown: () => true
     });
     const transformGroup = new Group_default({
       x: opt.position[0],
@@ -27677,7 +28177,11 @@ class AxisBuilder2 {
 }
 const builders = {
   axisLine(opt, axisModel, group, transformGroup) {
-    if (!axisModel.get(["axisLine", "show"])) {
+    let shown = axisModel.get(["axisLine", "show"]);
+    if (shown === "auto" && opt.handleAutoShown) {
+      shown = opt.handleAutoShown("axisLine");
+    }
+    if (!shown) {
       return;
     }
     const extent3 = axisModel.axis.getExtent();
@@ -27746,7 +28250,7 @@ const builders = {
     }
   },
   axisTickLabel(opt, axisModel, group, transformGroup) {
-    const ticksEls = buildAxisMajorTicks(group, transformGroup, axisModel, opt.tickDirection);
+    const ticksEls = buildAxisMajorTicks(group, transformGroup, axisModel, opt);
     const labelEls = buildAxisLabel(group, transformGroup, axisModel, opt);
     fixMinMaxLabelShow(axisModel, labelEls, ticksEls);
     buildAxisMinorTicks(group, transformGroup, axisModel, opt.tickDirection);
@@ -27946,14 +28450,18 @@ function createTicks(ticksCoords, tickTransform, tickEndCoord, tickLineStyle, an
   }
   return tickEls;
 }
-function buildAxisMajorTicks(group, transformGroup, axisModel, tickDirection) {
+function buildAxisMajorTicks(group, transformGroup, axisModel, opt) {
   const axis2 = axisModel.axis;
   const tickModel = axisModel.getModel("axisTick");
-  if (!tickModel.get("show") || axis2.scale.isBlank()) {
+  let shown = tickModel.get("show");
+  if (shown === "auto" && opt.handleAutoShown) {
+    shown = opt.handleAutoShown("axisTick");
+  }
+  if (!shown || axis2.scale.isBlank()) {
     return;
   }
   const lineStyleModel = tickModel.getModel("lineStyle");
-  const tickEndCoord = tickDirection * tickModel.get("length");
+  const tickEndCoord = opt.tickDirection * tickModel.get("length");
   const ticksCoords = axis2.getTicksCoords();
   const ticksEls = createTicks(ticksCoords, transformGroup.transform, tickEndCoord, defaults(lineStyleModel.getLineStyle(), {
     stroke: axisModel.get(["axisLine", "lineStyle", "color"])
@@ -28255,7 +28763,7 @@ class AxisView2 extends Component_default2 {
     this._axisPointer = null;
   }
   static registerAxisPointerClass(type, clazz7) {
-    if (__DEV__) {
+    if ('_DEV_') {
       if (axisPointerClazz[type]) {
         throw new Error("axisPointer " + type + " exists");
       }
@@ -28326,7 +28834,7 @@ function findAxisModels(seriesModel) {
   each(axisModelMap, function(v4, key) {
     const axisType = key.replace(/Model$/, "");
     const axisModel = seriesModel.getReferringComponents(axisType, SINGLE_REFERRING).models[0];
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!axisModel) {
         throw new Error(axisType + ' "' + retrieve3(seriesModel.get(axisType + "Index"), seriesModel.get(axisType + "Id"), 0) + '" not found');
       }
@@ -28432,7 +28940,18 @@ class CartesianAxisView2 extends AxisView_default {
     }
     const gridModel = axisModel.getCoordSysModel();
     const layout33 = layout13(gridModel, axisModel);
-    const axisBuilder = new AxisBuilder_default(axisModel, layout33);
+    const axisBuilder = new AxisBuilder_default(axisModel, extend({
+      handleAutoShown(elementType) {
+        const cartesians = gridModel.coordinateSystem.getCartesians();
+        for (let i = 0; i < cartesians.length; i++) {
+          const otherAxisType = cartesians[i].getOtherAxis(axisModel.axis).type;
+          if (otherAxisType === "value" || otherAxisType === "log") {
+            return true;
+          }
+        }
+        return false;
+      }
+    }, layout33));
     each(axisBuilderAttrs, axisBuilder.add, axisBuilder);
     this._axisGroup.add(axisBuilder.getGroup());
     each(selfBuilderAttrs, function(name) {
@@ -29170,7 +29689,7 @@ class Grid9 {
       const xAxisModel = axesModelMap.xAxisModel;
       const yAxisModel = axesModelMap.yAxisModel;
       const gridModel = xAxisModel.getCoordSysModel();
-      if (__DEV__) {
+      if ('_DEV_') {
         if (!gridModel) {
           throw new Error('Grid "' + retrieve3(xAxisModel.get("gridIndex"), xAxisModel.get("gridId"), 0) + '" not found');
         }
@@ -29418,7 +29937,7 @@ class BarView2 extends Chart_default {
     const isReorder = payload && payload.type === "changeAxisOrder";
     if (coordinateSystemType === "cartesian2d" || coordinateSystemType === "polar") {
       this._isLargeDraw ? this._renderLarge(seriesModel, ecModel, api) : this._renderNormal(seriesModel, ecModel, api, isReorder);
-    } else if (__DEV__) {
+    } else if ('_DEV_') {
       console.warn("Only cartesian2d and polar supported for bar.");
     }
   }
@@ -30993,13 +31512,13 @@ class LargeSymbolDraw {
       symbolEl.setColor(visualColor);
     }
     if (!isIncremental) {
-      const ecData = getECData(symbolEl);
-      ecData.seriesIndex = hostModel.seriesIndex;
+      const ecData29 = getECData(symbolEl);
+      ecData29.seriesIndex = hostModel.seriesIndex;
       symbolEl.on("mousemove", function(e) {
-        ecData.dataIndex = null;
+        ecData29.dataIndex = null;
         const dataIndex = symbolEl.findDataIndex(e.offsetX, e.offsetY);
         if (dataIndex >= 0) {
-          ecData.dataIndex = dataIndex + (symbolEl.startIndex || 0);
+          ecData29.dataIndex = dataIndex + (symbolEl.startIndex || 0);
         }
       });
     }
@@ -31470,7 +31989,7 @@ class RadarView4 extends Component_default2 {
         if (points9[0]) {
           points9.push(points9[0].slice());
         } else {
-          if (__DEV__) {
+          if ('_DEV_') {
             console.error("Can't draw value axis " + i);
           }
         }
@@ -31538,15 +32057,42 @@ class RadarSeriesModel extends Series_default {
       generateCoordCount: Infinity
     });
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode, order) {
     const data = this.getData();
     const coordSys = this.coordinateSystem;
     const indicatorAxes = coordSys.getIndicatorAxes();
     const name = this.getData().getName(dataIndex);
-    return encodeHTML(name === "" ? this.name : name) + "<br/>" + map2(indicatorAxes, function(axis2, idx) {
+    each(indicatorAxes, function(axis2, idx) {
+      axis2.value = data.get(data.mapDimension(axis2.dim), dataIndex);
+    });
+    switch (order) {
+      case "valueAsc":
+        indicatorAxes.sort(function(a, b) {
+          return +a.value - +b.value;
+        });
+        break;
+      case "valueDesc":
+        indicatorAxes.sort(function(a, b) {
+          return +b.value - +a.value;
+        });
+        break;
+      case "seriesDesc":
+        indicatorAxes.reverse();
+        break;
+      case "seriesAsc":
+      default:
+        break;
+    }
+    if (renderMode === "richText") {
+      return encodeHTML(name === "" ? this.name : name) + "\n" + map2(indicatorAxes, function(axis2) {
+        const val = data.get(data.mapDimension(axis2.dim), dataIndex);
+        return encodeHTML(axis2.name) + ": " + val;
+      }).join("\n");
+    }
+    return '<div style="font-size:12px;color:#6e7079;line-height:1;margin-top:-4px;">' + encodeHTML(name === "" ? this.name : name) + "</div>" + map2(indicatorAxes, function(axis2) {
       const val = data.get(data.mapDimension(axis2.dim), dataIndex);
-      return encodeHTML(axis2.name + " : " + val);
-    }).join("<br />");
+      return '<div style="margin: 11px 0 0;line-height:1">' + concatTooltipHtml(axis2.name, val) + "</div>";
+    }).join("");
   }
   getTooltipPosition(dataIndex) {
     if (dataIndex != null) {
@@ -31943,10 +32489,10 @@ const geoSVGLoader_default = {
         boundingRect: inner16(mapRecord).boundingRect
       };
     }
-    const graphic83 = buildGraphic(mapRecord);
-    inner16(mapRecord).originRoot = graphic83.root;
-    inner16(mapRecord).boundingRect = graphic83.boundingRect;
-    return graphic83;
+    const graphic77 = buildGraphic(mapRecord);
+    inner16(mapRecord).originRoot = graphic77.root;
+    inner16(mapRecord).boundingRect = graphic77.boundingRect;
+    return graphic77;
   },
   makeGraphic(mapName, mapRecord, hostKey) {
     const field = inner16(mapRecord);
@@ -32071,13 +32617,13 @@ const geoSourceManager_default = {
   }
 };
 function mapNotExistsError(mapName) {
-  if (__DEV__) {
+  if ('_DEV_') {
     console.error("Map " + mapName + " not exists. The GeoJSON of the map must be provided.");
   }
 }
 function retrieveMap(mapName) {
   const mapRecords = mapDataStorage_default.retrieveMap(mapName) || [];
-  if (__DEV__) {
+  if ('_DEV_') {
     if (!mapRecords.length) {
       mapNotExistsError(mapName);
     }
@@ -32137,7 +32683,7 @@ class MapSeries2 extends Series_default {
     const data = this.getData();
     return data.getItemModel(data.indexOfName(regionName));
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const data = this.getData();
     const formattedValue = addCommas(this.getRawValue(dataIndex));
     const name = data.getName(dataIndex);
@@ -32150,7 +32696,10 @@ class MapSeries2 extends Series_default {
         seriesNames.push(encodeHTML(seriesGroup[i].name));
       }
     }
-    return seriesNames.join(", ") + "<br />" + encodeHTML(name + " : " + formattedValue);
+    if (renderMode === "richText") {
+      return seriesNames.join(", ") + (seriesNames.length ? "\n" : "") + encodeHTML(name) + ": " + formattedValue;
+    }
+    return `<div style="font-size:12px;color:#6e7079;">${seriesNames.join(", ")}</div>` + concatTooltipHtml(name, formattedValue);
   }
   setZoom(zoom) {
     this.option.zoom = zoom;
@@ -33086,7 +33635,7 @@ function resizeGeo(geoModel, api) {
     const leftTop = boundingCoords[0];
     const rightBottom = boundingCoords[1];
     if (isNaN(leftTop[0]) || isNaN(leftTop[1]) || isNaN(rightBottom[0]) || isNaN(rightBottom[1])) {
-      if (__DEV__) {
+      if ('_DEV_') {
         console.error("Invalid boundingCoords");
       }
     } else {
@@ -33106,7 +33655,7 @@ function resizeGeo(geoModel, api) {
     if (!isNaN(center3[0]) && !isNaN(center3[1]) && !isNaN(size)) {
       useCenterAndSize = true;
     } else {
-      if (__DEV__) {
+      if ('_DEV_') {
         console.warn("Given layoutCenter or layoutSize data are invalid. Use left/top/width/height instead.");
       }
     }
@@ -33689,7 +34238,7 @@ class TreeSeriesModel extends Series_default {
   setCenter(center3) {
     this.option.center = center3;
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const tree2 = this.getData().tree;
     const realRoot = tree2.root.children[0];
     let node = tree2.getNodeByDataIndex(dataIndex);
@@ -33699,7 +34248,10 @@ class TreeSeriesModel extends Series_default {
       name = node.parentNode.name + "." + name;
       node = node.parentNode;
     }
-    return encodeHTML(name + (isNaN(value) || value == null ? "" : " : " + value));
+    if (renderMode === "richText") {
+      return encodeHTML(name) + ": " + (isNaN(value) || value == null ? "" : value);
+    }
+    return '<div style="line-height:1">' + concatTooltipHtml(name, isNaN(value) || value == null ? "" : value) + "</div>";
   }
 }
 TreeSeriesModel.type = "series.tree";
@@ -34264,7 +34816,7 @@ function drawEdge(seriesModel, node, virtualRoot, symbolEl, sourceOldLayout, sou
         }, seriesModel);
       }
     } else {
-      if (__DEV__) {
+      if ('_DEV_') {
         throw new Error("The polyline edgeShape can only be used in orthogonal layout");
       }
     }
@@ -34651,12 +35203,15 @@ class TreemapSeriesModel2 extends Series_default {
   optionUpdated() {
     this.resetViewRoot();
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const data = this.getData();
     const value = this.getRawValue(dataIndex);
     const formattedValue = isArray(value) ? addCommas(value[0]) : addCommas(value);
     const name = data.getName(dataIndex);
-    return encodeHTML(name + ": " + formattedValue);
+    if (renderMode === "richText") {
+      return encodeHTML(name) + ": " + formattedValue;
+    }
+    return '<div style="line-height:1">' + concatTooltipHtml(name, formattedValue) + "</div>";
   }
   getDataParams(dataIndex) {
     const params = super.getDataParams.apply(this, arguments);
@@ -34718,12 +35273,6 @@ TreemapSeriesModel2.defaultOption = {
     emptyItemWidth: 25,
     itemStyle: {
       color: "rgba(0,0,0,0.7)",
-      borderColor: "rgba(255,255,255,0.7)",
-      borderWidth: 1,
-      shadowColor: "rgba(150,150,150,1)",
-      shadowBlur: 3,
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
       textStyle: {
         color: "#fff"
       }
@@ -34941,7 +35490,7 @@ function createWrap() {
   let elExistsMap = {};
   let doneCallback;
   return {
-    add: function(el, target, time, delay, easing7) {
+    add: function(el, target, time2, delay, easing7) {
       if (isString(delay)) {
         easing7 = delay;
         delay = 0;
@@ -34953,7 +35502,7 @@ function createWrap() {
       storage2.push({
         el,
         target,
-        time,
+        time: time2,
         delay,
         easing: easing7
       });
@@ -35023,8 +35572,8 @@ class TreemapView2 extends Chart_default {
     this.seriesModel = seriesModel;
     this.api = api;
     this.ecModel = ecModel;
-    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types298, seriesModel);
+    const types303 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types303, seriesModel);
     const payloadType = payload && payload.type;
     const layoutInfo = seriesModel.layoutInfo;
     const isInit = !this._oldTree;
@@ -35457,9 +36006,9 @@ function renderNode(seriesModel, thisStorage, oldStorage, reRoot, lastsForAnimat
   }
   return group;
   function renderBackground(group2, bg2, useUpperLabel) {
-    const ecData = getECData(bg2);
-    ecData.dataIndex = thisNode.dataIndex;
-    ecData.seriesIndex = seriesModel.seriesIndex;
+    const ecData29 = getECData(bg2);
+    ecData29.dataIndex = thisNode.dataIndex;
+    ecData29.seriesIndex = seriesModel.seriesIndex;
     bg2.setShape({
       x: 0,
       y: 0,
@@ -35500,9 +36049,9 @@ function renderNode(seriesModel, thisStorage, oldStorage, reRoot, lastsForAnimat
     group2.add(bg2);
   }
   function renderContent(group2, content) {
-    const ecData = getECData(content);
-    ecData.dataIndex = thisNode.dataIndex;
-    ecData.seriesIndex = seriesModel.seriesIndex;
+    const ecData29 = getECData(content);
+    ecData29.dataIndex = thisNode.dataIndex;
+    ecData29.seriesIndex = seriesModel.seriesIndex;
     const contentWidth = Math.max(thisWidth - 2 * borderWidth, 0);
     const contentHeight = Math.max(thisHeight - 2 * borderWidth, 0);
     content.culling = true;
@@ -35658,8 +36207,8 @@ registerAction({
     query: payload
   }, handleRootToNode);
   function handleRootToNode(model65, index) {
-    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types298, model65);
+    const types303 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types303, model65);
     if (targetInfo) {
       const originViewRoot = model65.getViewRoot();
       if (originViewRoot) {
@@ -35740,11 +36289,11 @@ class VisualMapping9 {
     if (isArray(visualTypes)) {
       visualTypes = visualTypes.slice();
     } else if (isObject5(visualTypes)) {
-      const types298 = [];
+      const types303 = [];
       each19(visualTypes, function(item, type) {
-        types298.push(type);
+        types303.push(type);
       });
-      visualTypes = types298;
+      visualTypes = types303;
     } else {
       return [];
     }
@@ -36171,8 +36720,8 @@ const treemapLayout_default = {
     const containerWidth = parsePercent3(retrieveValue(layoutInfo.width, size[0]), ecWidth);
     const containerHeight = parsePercent3(retrieveValue(layoutInfo.height, size[1]), ecHeight);
     const payloadType = payload && payload.type;
-    const types298 = ["treemapZoomToNode", "treemapRootToNode"];
-    const targetInfo = retrieveTargetInfo(payload, types298, seriesModel);
+    const types303 = ["treemapZoomToNode", "treemapRootToNode"];
+    const targetInfo = retrieveTargetInfo(payload, types303, seriesModel);
     const rootRect = payloadType === "treemapRender" || payloadType === "treemapMove" ? payload.rootRect : null;
     const viewRoot = seriesModel.getViewRoot();
     const viewAbovePath = getPathToRoot(viewRoot);
@@ -36517,7 +37066,7 @@ class Graph12 {
     id = id == null ? "" + dataIndex : "" + id;
     const nodesMap = this._nodesMap;
     if (nodesMap[generateNodeKey(id)]) {
-      if (__DEV__) {
+      if ('_DEV_') {
         console.error("Graph nodes have duplicate name or id");
       }
       return;
@@ -36901,7 +37450,7 @@ class GraphSeriesModel extends Series_default {
   getCategoriesData() {
     return this._categoriesData;
   }
-  formatTooltip(dataIndex, multipleSeries, dataType) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     if (dataType === "edge") {
       const nodeData = this.getData();
       const params = this.getDataParams(dataIndex, dataType);
@@ -37910,7 +38459,7 @@ function categoryVisual_default(ecModel) {
 }
 
 // src/chart/graph/edgeVisual.ts
-function normalize3(a) {
+function normalize2(a) {
   if (!(a instanceof Array)) {
     a = [a, a];
   }
@@ -37920,8 +38469,8 @@ function edgeVisual_default(ecModel) {
   ecModel.eachSeriesByType("graph", function(seriesModel) {
     const graph2 = seriesModel.getGraph();
     const edgeData = seriesModel.getEdgeData();
-    const symbolType = normalize3(seriesModel.get("edgeSymbol"));
-    const symbolSize = normalize3(seriesModel.get("edgeSymbolSize"));
+    const symbolType = normalize2(seriesModel.get("edgeSymbol"));
+    const symbolSize = normalize2(seriesModel.get("edgeSymbolSize"));
     edgeData.setVisual("fromSymbol", symbolType && symbolType[0]);
     edgeData.setVisual("toSymbol", symbolType && symbolType[1]);
     edgeData.setVisual("fromSymbolSize", symbolSize && symbolSize[0]);
@@ -37930,8 +38479,8 @@ function edgeVisual_default(ecModel) {
     edgeData.each(function(idx) {
       const itemModel = edgeData.getItemModel(idx);
       const edge = graph2.getEdgeByIndex(idx);
-      const symbolType2 = normalize3(itemModel.getShallow("symbol", true));
-      const symbolSize2 = normalize3(itemModel.getShallow("symbolSize", true));
+      const symbolType2 = normalize2(itemModel.getShallow("symbol", true));
+      const symbolSize2 = normalize2(itemModel.getShallow("symbolSize", true));
       const style2 = itemModel.getModel("lineStyle").getLineStyle();
       const existsStyle = edgeData.ensureUniqueItemVisual(idx, "style");
       extend(existsStyle, style2);
@@ -39776,7 +40325,7 @@ class BrushController6 extends Eventful2 {
     this._track = [];
     this._covers = [];
     this._handlers = {};
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(zr);
     }
     this._zr = zr;
@@ -39787,7 +40336,7 @@ class BrushController6 extends Eventful2 {
     }, this);
   }
   enableBrush(brushOption) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(this._mounted);
     }
     this._brushType && this._doDisableBrush();
@@ -39826,7 +40375,7 @@ class BrushController6 extends Eventful2 {
   }
   mount(opt) {
     opt = opt || {};
-    if (__DEV__) {
+    if ('_DEV_') {
       this._mounted = true;
     }
     this._enableGlobalPan = opt.enableGlobalPan;
@@ -39843,7 +40392,7 @@ class BrushController6 extends Eventful2 {
     return this;
   }
   updateCovers(coverConfigList) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(this._mounted);
     }
     coverConfigList = map2(coverConfigList, function(coverConfig) {
@@ -39878,7 +40427,7 @@ class BrushController6 extends Eventful2 {
     }
   }
   unmount() {
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!this._mounted) {
         return;
       }
@@ -39886,7 +40435,7 @@ class BrushController6 extends Eventful2 {
     this.enableBrush(false);
     clearCovers(this);
     this._zr.remove(this.group);
-    if (__DEV__) {
+    if ('_DEV_') {
       this._mounted = false;
     }
     return this;
@@ -40218,7 +40767,7 @@ function updateCoverByMouse(controller, e, localCursorPoint, isEnd) {
 }
 function determineBrushType(brushType, panel) {
   if (brushType === "auto") {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(panel && panel.defaultBrushType, 'MUST have defaultBrushType when brushType is "atuo"');
     }
     return panel.defaultBrushType;
@@ -40835,7 +41384,7 @@ class SankeySeriesModel extends Series_default {
       if (levels[i].depth != null && levels[i].depth >= 0) {
         levelModels[levels[i].depth] = new Model_default(levels[i], this, ecModel);
       } else {
-        if (__DEV__) {
+        if ('_DEV_') {
           throw new Error("levels[i].depth is mandatory and should be natural number");
         }
       }
@@ -40883,23 +41432,24 @@ class SankeySeriesModel extends Series_default {
   getEdgeData() {
     return this.getGraph().edgeData;
   }
-  formatTooltip(dataIndex, multipleSeries, dataType) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     if (dataType === "edge") {
       const params = this.getDataParams(dataIndex, dataType);
       const rawDataOpt = params.data;
-      let html = rawDataOpt.source + " -- " + rawDataOpt.target;
-      if (params.value) {
-        html += " : " + params.value;
+      if (renderMode === "richText") {
+        return encodeHTML(rawDataOpt.source + " -- " + rawDataOpt.target) + params.value;
       }
-      return encodeHTML(html);
+      return '<div style="line-height:1">' + concatTooltipHtml(rawDataOpt.source + " -- " + rawDataOpt.target, params.value || "") + "</div>";
     } else if (dataType === "node") {
       const node = this.getGraph().getNodeByIndex(dataIndex);
       const value = node.getLayout().value;
       const name = this.getDataParams(dataIndex, dataType).data.name;
-      const html = value ? name + " : " + value : "";
-      return encodeHTML(html);
+      if (renderMode === "richText") {
+        return encodeHTML(value ? name : "") + ": " + (value || "");
+      }
+      return '<div style="line-height:1">' + concatTooltipHtml(value ? name : "", value || "") + "</div>";
     }
-    return super.formatTooltip(dataIndex, multipleSeries);
+    return super.formatTooltip(dataIndex, multipleSeries, dataType, renderMode);
   }
   optionUpdated() {
     const option = this.option;
@@ -41030,10 +41580,10 @@ class SankeyView2 extends Chart_default {
     group.y = layoutInfo.y;
     graph2.eachEdge(function(edge) {
       const curve8 = new SankeyPath();
-      const ecData = getECData(curve8);
-      ecData.dataIndex = edge.dataIndex;
-      ecData.seriesIndex = seriesModel.seriesIndex;
-      ecData.dataType = "edge";
+      const ecData29 = getECData(curve8);
+      ecData29.dataIndex = edge.dataIndex;
+      ecData29.seriesIndex = seriesModel.seriesIndex;
+      ecData29.dataType = "edge";
       const edgeModel = edge.getModel();
       const lineStyleModel = edgeModel.getModel("lineStyle");
       const curvature = lineStyleModel.get("curveness");
@@ -41618,7 +42168,17 @@ function sankeyVisual_default(ecModel) {
         });
         const mapValueToColor = mapping.mapValueToVisual(node.getLayout().value);
         const customColor = node.getModel().get(["itemStyle", "color"]);
-        customColor != null ? node.setVisual("color", customColor) : node.setVisual("color", mapValueToColor);
+        if (customColor != null) {
+          node.setVisual("color", customColor);
+          node.setVisual("style", {
+            fill: customColor
+          });
+        } else {
+          node.setVisual("color", mapValueToColor);
+          node.setVisual("style", {
+            fill: mapValueToColor
+          });
+        }
       });
     }
   });
@@ -42719,7 +43279,7 @@ const Float64Arr = typeof Float64Array === "undefined" ? Array : Float64Array;
 function compatEc2(seriesOpt) {
   const data = seriesOpt.data;
   if (data && data[0] && data[0][0] && data[0][0].coord) {
-    if (__DEV__) {
+    if ('_DEV_') {
       console.warn("Lines data configuration has been changed to { coords:[[1,2],[2,3]] }");
     }
     seriesOpt.data = map2(data, function(itemOpt) {
@@ -42785,7 +43345,7 @@ class LinesSeriesModel extends Series_default {
   _getCoordsFromItemModel(idx) {
     const itemModel = this.getData().getItemModel(idx);
     const coords = itemModel.option instanceof Array ? itemModel.option : itemModel.getShallow("coords");
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!(coords instanceof Array && coords.length > 0 && coords[0] instanceof Array)) {
         throw new Error("Invalid coords " + JSON.stringify(coords) + ". Lines must have 2d coords array in data item.");
       }
@@ -42842,7 +43402,7 @@ class LinesSeriesModel extends Series_default {
           coordsStorage[coordsCursor++] = x;
           coordsStorage[coordsCursor++] = y;
           if (i > len2) {
-            if (__DEV__) {
+            if ('_DEV_') {
               throw new Error("Invalid data format.");
             }
           }
@@ -42861,7 +43421,7 @@ class LinesSeriesModel extends Series_default {
     };
   }
   getInitialData(option, ecModel) {
-    if (__DEV__) {
+    if ('_DEV_') {
       const CoordSys = CoordinateSystem_default.get(option.coordinateSystem);
       if (!CoordSys) {
         throw new Error("Unkown coordinate system " + option.coordinateSystem);
@@ -42882,7 +43442,7 @@ class LinesSeriesModel extends Series_default {
     });
     return lineData;
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const data = this.getData();
     const itemModel = data.getItemModel(dataIndex);
     const name = itemModel.get("name");
@@ -43375,13 +43935,13 @@ class LargeLineDraw {
     }
     lineEl.setStyle("fill", null);
     if (!isIncremental) {
-      const ecData = getECData(lineEl);
-      ecData.seriesIndex = hostModel.seriesIndex;
+      const ecData29 = getECData(lineEl);
+      ecData29.seriesIndex = hostModel.seriesIndex;
       lineEl.on("mousemove", function(e) {
-        ecData.dataIndex = null;
+        ecData29.dataIndex = null;
         const dataIndex = lineEl.findDataIndex(e.offsetX, e.offsetY);
         if (dataIndex > 0) {
-          ecData.dataIndex = dataIndex + lineEl.__startIndex;
+          ecData29.dataIndex = dataIndex + lineEl.__startIndex;
         }
       });
     }
@@ -43480,7 +44040,7 @@ class LinesView2 extends Chart_default {
       });
     }
     if (this._showEffect(seriesModel) && trailLength) {
-      if (__DEV__) {
+      if ('_DEV_') {
         let notInIndividual = false;
         ecModel.eachSeries(function(otherSeriesModel) {
           if (otherSeriesModel !== seriesModel && otherSeriesModel.get("zlevel") === zlevel) {
@@ -43543,7 +44103,7 @@ class LinesView2 extends Chart_default {
     const isPolyline = !!seriesModel.get("polyline");
     const pipelineContext = seriesModel.pipelineContext;
     const isLargeDraw = pipelineContext.large;
-    if (__DEV__) {
+    if ('_DEV_') {
       if (hasEffect && isLargeDraw) {
         console.warn("Large lines not support effect");
       }
@@ -43581,7 +44141,7 @@ LinesView2.type = "lines";
 Chart_default.registerClass(LinesView2);
 
 // src/chart/lines/linesVisual.ts
-function normalize4(a) {
+function normalize3(a) {
   if (!(a instanceof Array)) {
     a = [a, a];
   }
@@ -43590,8 +44150,8 @@ function normalize4(a) {
 const linesVisual2 = {
   seriesType: "lines",
   reset(seriesModel) {
-    const symbolType = normalize4(seriesModel.get("symbol"));
-    const symbolSize = normalize4(seriesModel.get("symbolSize"));
+    const symbolType = normalize3(seriesModel.get("symbol"));
+    const symbolSize = normalize3(seriesModel.get("symbolSize"));
     const data = seriesModel.getData();
     data.setVisual("fromSymbol", symbolType && symbolType[0]);
     data.setVisual("toSymbol", symbolType && symbolType[1]);
@@ -43599,8 +44159,8 @@ const linesVisual2 = {
     data.setVisual("toSymbolSize", symbolSize && symbolSize[1]);
     function dataEach(data2, idx) {
       const itemModel = data2.getItemModel(idx);
-      const symbolType2 = normalize4(itemModel.getShallow("symbol", true));
-      const symbolSize2 = normalize4(itemModel.getShallow("symbolSize", true));
+      const symbolType2 = normalize3(itemModel.getShallow("symbol", true));
+      const symbolSize2 = normalize3(itemModel.getShallow("symbolSize", true));
       symbolType2[0] && data2.setItemVisual(idx, "fromSymbol", symbolType2[0]);
       symbolType2[1] && data2.setItemVisual(idx, "toSymbol", symbolType2[1]);
       symbolSize2[0] && data2.setItemVisual(idx, "fromSymbolSize", symbolSize2[0]);
@@ -43668,7 +44228,7 @@ class HeatmapLayer {
     const canvas2 = createCanvas();
     this.canvas = canvas2;
   }
-  update(data, width, height, normalize6, colorFunc, isInRange) {
+  update(data, width, height, normalize5, colorFunc, isInRange) {
     const brush3 = this._getBrush();
     const gradientInRange = this._getGradient(colorFunc, "inRange");
     const gradientOutOfRange = this._getGradient(colorFunc, "outOfRange");
@@ -43683,7 +44243,7 @@ class HeatmapLayer {
       const x = p[0];
       const y = p[1];
       const value = p[2];
-      const alpha = normalize6(value);
+      const alpha = normalize5(value);
       ctx.globalAlpha = alpha;
       ctx.drawImage(brush3, x - r, y - r);
     }
@@ -43804,7 +44364,7 @@ class HeatmapView2 extends Chart_default {
         }
       });
     });
-    if (__DEV__) {
+    if ('_DEV_') {
       if (!visualMapOfThisSeries) {
         throw new Error("Heatmap must use with visualMap");
       }
@@ -43836,7 +44396,7 @@ class HeatmapView2 extends Chart_default {
     if (isCoordinateSystemType(coordSys, "cartesian2d")) {
       const xAxis = coordSys.getAxis("x");
       const yAxis = coordSys.getAxis("y");
-      if (__DEV__) {
+      if ('_DEV_') {
         if (!(xAxis.type === "category" && yAxis.type === "category")) {
           throw new Error("Heatmap on cartesian must have two category axes");
         }
@@ -44917,9 +45477,22 @@ function findPointFromSeries_default(finder, ecModel) {
   if (seriesModel.getTooltipPosition) {
     point = seriesModel.getTooltipPosition(dataIndex) || [];
   } else if (coordSys && coordSys.dataToPoint) {
-    point = coordSys.dataToPoint(data.getValues(map2(coordSys.dimensions, function(dim) {
-      return data.mapDimension(dim);
-    }), dataIndex)) || [];
+    if (finder.isStacked) {
+      const baseAxis = coordSys.getBaseAxis();
+      const valueAxis2 = coordSys.getOtherAxis(baseAxis);
+      const valueAxisDim = valueAxis2.dim;
+      const baseAxisDim = baseAxis.dim;
+      const baseDataOffset = valueAxisDim === "x" || valueAxisDim === "radius" ? 1 : 0;
+      const baseDim = data.mapDimension(baseAxisDim);
+      const stackedData = [];
+      stackedData[baseDataOffset] = data.get(baseDim, dataIndex);
+      stackedData[1 - baseDataOffset] = data.get(data.getCalculationInfo("stackResultDimension"), dataIndex);
+      point = coordSys.dataToPoint(stackedData) || [];
+    } else {
+      point = coordSys.dataToPoint(data.getValues(map2(coordSys.dimensions, function(dim) {
+        return data.mapDimension(dim);
+      }), dataIndex)) || [];
+    }
   } else if (el) {
     const rect = el.getBoundingRect().clone();
     rect.applyTransform(el.transform);
@@ -45649,13 +46222,17 @@ function confineInContainer(position2, width, height, api) {
 }
 function getValueLabel(value, axis2, ecModel, seriesDataIndices, opt) {
   value = axis2.scale.parse(value);
-  let text11 = axis2.scale.getLabel(value, {
+  let text11 = axis2.scale.getLabel({
+    value
+  }, {
     precision: opt.precision
   });
   const formatter = opt.formatter;
   if (formatter) {
     const params = {
-      value: getAxisRawValue(axis2, value),
+      value: getAxisRawValue(axis2, {
+        value
+      }),
       axisDimension: axis2.dim,
       axisIndex: axis2.index,
       seriesData: []
@@ -45825,12 +46402,12 @@ AxisPointerModel2.defaultOption = {
   animation: null,
   animationDurationUpdate: 200,
   lineStyle: {
-    color: "#aaa",
+    color: "#B9BEC9",
     width: 1,
-    type: "solid"
+    type: "dashed"
   },
   shadowStyle: {
-    color: "rgba(150,150,150,0.3)"
+    color: "rgba(210,219,238,0.2)"
   },
   label: {
     show: true,
@@ -45842,8 +46419,7 @@ AxisPointerModel2.defaultOption = {
     backgroundColor: "auto",
     borderColor: null,
     borderWidth: 0,
-    shadowBlur: 3,
-    shadowColor: "#aaa"
+    borderRadius: 3
   },
   handle: {
     show: false,
@@ -46117,14 +46693,17 @@ class ThemeRiverSeriesModel extends Series_default {
       nestestValue
     };
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const data = this.getData();
     const htmlName = data.getName(dataIndex);
     let htmlValue = data.get(data.mapDimension("value"), dataIndex);
     if (isNaN(htmlValue) || htmlValue == null) {
       htmlValue = "-";
     }
-    return encodeHTML(htmlName + " : " + htmlValue);
+    if (renderMode === "richText") {
+      return encodeHTML(htmlName) + ": " + htmlValue;
+    }
+    return '<div style="margin: 11px 0 0;line-height:1">' + concatTooltipHtml(htmlName, htmlValue) + "</div>";
   }
 }
 ThemeRiverSeriesModel.type = "series.themeRiver";
@@ -46675,7 +47254,7 @@ registerAction({
       payload.dataIndex = targetInfo.node.dataIndex;
     }
   }
-  if (__DEV__) {
+  if ('_DEV_') {
     deprecateReplaceLog("highlight", "sunburstHighlight");
   }
   api.dispatchAction(extend(payload, {
@@ -46688,7 +47267,7 @@ registerAction({
   update: "updateView"
 }, function(payload, ecModel, api) {
   payload = extend({}, payload);
-  if (__DEV__) {
+  if ('_DEV_') {
     deprecateReplaceLog("downplay", "sunburstUnhighlight");
   }
   api.dispatchAction(extend(payload, {
@@ -47267,7 +47846,7 @@ function convertToEC4RichItem(out2, richItem) {
   hasOwn(richItem, "textShadowOffsetY") && (out2.textShadowOffsetY = richItem.textShadowOffsetY);
 }
 function warnDeprecated(deprecated, insteadApproach) {
-  if (__DEV__) {
+  if ('_DEV_') {
     const key = deprecated + "^_^" + insteadApproach;
     if (!deprecatedLogs[key]) {
       console.warn(`[ECharts] DEPRECATED: "${deprecated}" has been deprecated. ${insteadApproach}`);
@@ -47447,7 +48026,7 @@ function createEl(elOption) {
     throw new Error('"compoundPath" is not supported yet.');
   } else {
     const Clz = getShapeClass(graphicType);
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(Clz, 'graphic type "' + graphicType + '" can not be found.');
     }
     el = new Clz();
@@ -47528,7 +48107,7 @@ function prepareShapeOrExtraUpdate(mainAttr, el, elOption, allProps, transFromPr
     for (let i = 0; i < transitionKeys.length; i++) {
       const key = transitionKeys[i];
       const elVal = elPropsInAttr[key];
-      if (__DEV__) {
+      if ('_DEV_') {
         checkTansitionRefer(key, attrOpt[key], elVal);
       }
       transFromPropsInAttr[key] = elVal;
@@ -47557,7 +48136,7 @@ function prepareTransformUpdate(el, elOption, allProps, transFromProps, isInit) 
     const enterFromKeys = keys(enterFrom);
     for (let i = 0; i < enterFromKeys.length; i++) {
       const key = enterFromKeys[i];
-      if (__DEV__) {
+      if ('_DEV_') {
         checkTransformPropRefer(key, "el.enterFrom");
       }
       transFromProps[key] = enterFrom[key];
@@ -47569,7 +48148,7 @@ function prepareTransformUpdate(el, elOption, allProps, transFromProps, isInit) 
       for (let i = 0; i < transitionKeys.length; i++) {
         const key = transitionKeys[i];
         const elVal = el[key];
-        if (__DEV__) {
+        if ('_DEV_') {
           checkTransformPropRefer(key, "el.transition");
           checkTansitionRefer(key, elOption[key], elVal);
         }
@@ -47597,7 +48176,7 @@ function prepareTransformUpdate(el, elOption, allProps, transFromProps, isInit) 
     const leaveToKeys = keys(leaveTo);
     for (let i = 0; i < leaveToKeys.length; i++) {
       const key = leaveToKeys[i];
-      if (__DEV__) {
+      if ('_DEV_') {
         checkTransformPropRefer(key, "el.leaveTo");
       }
       leaveToProps[key] = leaveTo[key];
@@ -47625,7 +48204,7 @@ function prepareStyleUpdate(el, styleOpt, transFromProps, isInit) {
     for (let i = 0; i < transitionKeys.length; i++) {
       const key = transitionKeys[i];
       const elVal = elStyle[key];
-      if (__DEV__) {
+      if ('_DEV_') {
         checkTansitionRefer(key, styleOpt[key], elVal);
       }
       transFromStyleProps[key] = elVal;
@@ -47657,20 +48236,20 @@ function getOrCreateLeaveToPropsFromEl(el) {
 const tmpDuringScope = {};
 const customDuringAPI = {
   setTransform(key, val) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(hasOwn(TRANSFORM_PROPS, key), "Only " + transformPropNamesStr + " available in `setTransform`.");
     }
     tmpDuringScope.el[key] = val;
     return this;
   },
   getTransform(key) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(hasOwn(TRANSFORM_PROPS, key), "Only " + transformPropNamesStr + " available in `getTransform`.");
     }
     return tmpDuringScope.el[key];
   },
   setShape(key, val) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const shape = tmpDuringScope.el.shape || (tmpDuringScope.el.shape = {});
@@ -47679,7 +48258,7 @@ const customDuringAPI = {
     return this;
   },
   getShape(key) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const shape = tmpDuringScope.el.shape;
@@ -47688,7 +48267,7 @@ const customDuringAPI = {
     }
   },
   setStyle(key, val) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const style2 = tmpDuringScope.el.style;
@@ -47699,7 +48278,7 @@ const customDuringAPI = {
     return this;
   },
   getStyle(key) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const style2 = tmpDuringScope.el.style;
@@ -47708,7 +48287,7 @@ const customDuringAPI = {
     }
   },
   setExtra(key, val) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const extra = tmpDuringScope.el.extra || (tmpDuringScope.el.extra = {});
@@ -47716,7 +48295,7 @@ const customDuringAPI = {
     return this;
   },
   getExtra(key) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assertNotReserved(key);
     }
     const extra = tmpDuringScope.el.extra;
@@ -47726,7 +48305,7 @@ const customDuringAPI = {
   }
 };
 function assertNotReserved(key) {
-  if (__DEV__) {
+  if ('_DEV_') {
     if (key === "transition" || key === "enterFrom" || key === "leaveTo") {
       throw new Error('key must not be "' + key + '"');
     }
@@ -47822,7 +48401,7 @@ function makeRenderItem(customSeries, data, ecModel, api) {
   const coordSys = customSeries.coordinateSystem;
   let prepareResult2 = {};
   if (coordSys) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(renderItem, "series.render is required.");
       assert(coordSys.prepareCustoms || prepareCustoms[coordSys.type], "This coordSys does not support custom series.");
     }
@@ -47886,7 +48465,7 @@ function makeRenderItem(customSeries, data, ecModel, api) {
     return data.get(data.getDimension(dim || 0), dataIndexInside);
   }
   function style2(userProps, dataIndexInside) {
-    if (__DEV__) {
+    if ('_DEV_') {
       warnDeprecated("api.style", "Please write literal style directly instead.");
     }
     dataIndexInside == null && (dataIndexInside = currDataIndexInside);
@@ -47910,7 +48489,7 @@ function makeRenderItem(customSeries, data, ecModel, api) {
     return itemStyle5;
   }
   function styleEmphasis(userProps, dataIndexInside) {
-    if (__DEV__) {
+    if ('_DEV_') {
       warnDeprecated("api.styleEmphasis", "Please write literal style directly instead.");
     }
     dataIndexInside == null && (dataIndexInside = currDataIndexInside);
@@ -47986,7 +48565,7 @@ function createOrUpdateItem(el, dataIndex, elOption, seriesModel, group, data) {
   return el;
 }
 function doCreateOrUpdateEl(el, dataIndex, elOption, seriesModel, group, isRoot) {
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(elOption, "should not have an null/undefined element setting");
   }
   let toBeReplacedIdx = -1;
@@ -48044,7 +48623,7 @@ function doCreateOrUpdateClipPath(el, dataIndex, elOption, seriesModel, isInit) 
     }
     if (!clipPath) {
       clipPath = createEl(clipPathOpt);
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(clipPath instanceof Path_default, "Only any type of `path` can be used in `clipPath`, rather than " + clipPath.type + ".");
       }
       el.setClipPath(clipPath);
@@ -48109,7 +48688,7 @@ function processTxInfo(elOption, state, attachedTxInfo) {
   if (!state && txConOpt) {
     const txConOptNormal2 = txConOpt;
     !txConOptNormal2.type && (txConOptNormal2.type = "text");
-    if (__DEV__) {
+    if ('_DEV_') {
       txConOptNormal2.type !== "text" && assert(txConOptNormal2.type === "text", 'textContent.type must be "text"');
     }
   }
@@ -48696,7 +49275,7 @@ const polarCreator4 = {
     ecModel.eachSeries(function(seriesModel) {
       if (seriesModel.get("coordinateSystem") === "polar") {
         const polarModel = seriesModel.getReferringComponents("polar", SINGLE_REFERRING).models[0];
-        if (__DEV__) {
+        if ('_DEV_') {
           if (!polarModel) {
             throw new Error('Polar "' + retrieve(seriesModel.get("polarIndex"), seriesModel.get("polarId"), 0) + '" not found');
           }
@@ -49589,7 +50168,7 @@ class Calendar3 {
       normalizedRange = range;
     }
     if (!normalizedRange) {
-      if (__DEV__) {
+      if ('_DEV_') {
         logError("Invalid date range.");
       }
       return range;
@@ -50124,7 +50703,7 @@ const GraphicModel = extendComponentModel({
     const elOptionsToUpdate = this._elOptionsToUpdate = [];
     each(mappingResult, function(resultItem, index) {
       const newElOption = resultItem.newOption;
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(isObject(newElOption) || resultItem.existing, "Empty graphic option definition");
       }
       if (!newElOption) {
@@ -50201,7 +50780,7 @@ extendComponentView({
         !elOptionStyle.hasOwnProperty("textStroke") && elOptionStyle.stroke && (elOptionStyle.textStroke = elOptionStyle.stroke);
       }
       const elOptionCleaned = getCleanedElOption(elOption);
-      if (__DEV__) {
+      if ('_DEV_') {
         existEl && assert(targetElParent === existEl.parent, "Changing parent is not supported.");
       }
       if (!$action || $action === "merge") {
@@ -50270,11 +50849,11 @@ extendComponentView({
 });
 function createEl2(id, targetElParent, elOption, elMap) {
   const graphicType = elOption.type;
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(graphicType, "graphic type MUST be set");
   }
   const Clz = _nonShapeGraphicElements.hasOwnProperty(graphicType) ? _nonShapeGraphicElements[graphicType] : getShapeClass(graphicType);
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(Clz, "graphic type can not be found");
   }
   const el = new Clz(elOption);
@@ -50326,7 +50905,7 @@ function mergeNewElOptionToExist(existList, index, newElOption) {
   const $action = newElOption.$action || "merge";
   if ($action === "merge") {
     if (existElOption) {
-      if (__DEV__) {
+      if ('_DEV_') {
         const newType = newElOption.type;
         assert(!newType || existElOption.type === newType, 'Please set $action: "replace" to change `type`');
       }
@@ -50706,8 +51285,8 @@ class SaveAsImage2 extends ToolboxFeature {
         const blob = new Blob([u8arr]);
         window.navigator.msSaveOrOpenBlob(blob, title2 + "." + type);
       } else {
-        const lang9 = model65.get("lang");
-        const html = '<body style="margin:0;"><img src="' + url + '" style="max-width:100%;" title="' + (lang9 && lang9[0] || "") + '" /></body>';
+        const lang10 = model65.get("lang");
+        const html = '<body style="margin:0;"><img src="' + url + '" style="max-width:100%;" title="' + (lang10 && lang10[0] || "") + '" /></body>';
         const tab = window.open();
         tab.document.write(html);
       }
@@ -51057,8 +51636,8 @@ class DataView2 extends ToolboxFeature {
     root.style.cssText = "position:absolute;left:5px;top:5px;bottom:5px;right:5px;";
     root.style.backgroundColor = model65.get("backgroundColor") || "#fff";
     const header = document.createElement("h4");
-    const lang9 = model65.get("lang") || [];
-    header.innerHTML = lang9[0] || model65.get("title");
+    const lang10 = model65.get("lang") || [];
+    header.innerHTML = lang10[0] || model65.get("title");
     header.style.cssText = "margin: 10px 20px;";
     header.style.color = model65.get("textColor");
     const viewMain = document.createElement("div");
@@ -51117,8 +51696,8 @@ class DataView2 extends ToolboxFeature {
       }
       close();
     });
-    closeButton.innerHTML = lang9[1];
-    refreshButton.innerHTML = lang9[2];
+    closeButton.innerHTML = lang10[1];
+    refreshButton.innerHTML = lang10[2];
     refreshButton.style.cssText = buttonStyle;
     closeButton.style.cssText = buttonStyle;
     !model65.get("readOnly") && buttonContainer.appendChild(refreshButton);
@@ -51234,7 +51813,7 @@ class BrushTargetManager4 {
   setInputRanges(areas, ecModel) {
     each(areas, function(area) {
       const targetInfo = this.findTargetInfo(area, ecModel);
-      if (__DEV__) {
+      if ('_DEV_') {
         assert(!targetInfo || targetInfo === true || area.coordRange, "coordRange must be specified when coord index specified.");
         assert(!targetInfo || targetInfo !== true || area.range, "range must be specified in global brush.");
       }
@@ -51404,7 +51983,7 @@ const coordConvert = {
   }
 };
 function axisConvert(axisNameIndex, to, coordSys, rangeOrCoordRange) {
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(coordSys.type === "cartesian2d", "lineX/lineY brush is available only in cartesian2d.");
   }
   const axis2 = coordSys.getAxis(["x", "y"][axisNameIndex]);
@@ -51521,7 +52100,7 @@ function isCoordSupported(seriesModel) {
   return indexOf(SERIES_COORDS, coordType) >= 0;
 }
 function getAxisMainType(axisDim) {
-  if (__DEV__) {
+  if ('_DEV_') {
     assert(axisDim);
   }
   return axisDim + "Axis";
@@ -51791,7 +52370,7 @@ class DataZoomModel3 extends Component_default {
     }
   }
   getAxisModel(axisDim, axisIndex) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(axisDim && axisIndex != null);
     }
     const axisInfo = this._targetAxisInfoMap.get(axisDim);
@@ -51857,7 +52436,7 @@ class DataZoomModel3 extends Component_default {
     return this._rangePropMode.slice();
   }
   getOrient() {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(this._orient);
     }
     return this._orient;
@@ -52406,11 +52985,15 @@ TooltipModel6.defaultOption = {
   hideDelay: 100,
   transitionDuration: 0.4,
   enterable: false,
-  backgroundColor: "rgba(50,50,50,0.7)",
+  backgroundColor: "#fff",
+  shadowBlur: 10,
+  shadowColor: "rgba(0, 0, 0, .2)",
+  shadowOffsetX: 1,
+  shadowOffsetY: 2,
   borderColor: "#333",
   borderRadius: 4,
-  borderWidth: 0,
-  padding: 5,
+  borderWidth: 1,
+  padding: 10,
   extraCssText: "",
   axisPointer: {
     type: "line",
@@ -52426,7 +53009,7 @@ TooltipModel6.defaultOption = {
     }
   },
   textStyle: {
-    color: "#fff",
+    color: "#666",
     fontSize: 14
   }
 };
@@ -52437,6 +53020,39 @@ const each9 = each;
 const toCamelCase = toCamelCase2;
 const vendors = ["", "-webkit-", "-moz-", "-o-"];
 const gCssText = "position:absolute;display:block;border-style:solid;white-space:nowrap;z-index:9999999;";
+function mirrowPos(pos) {
+  pos = pos === "left" ? "right" : pos === "right" ? "left" : pos === "top" ? "bottom" : "top";
+  return pos;
+}
+function getFinalColor(color8) {
+  let finalNearPointColor = "#fff";
+  if (isObject(color8) && color8.type !== "pattern") {
+    finalNearPointColor = color8.colorStops[0].color;
+  } else if (isObject(color8) && color8.type === "pattern") {
+    finalNearPointColor = "transparent";
+  } else if (isString(color8)) {
+    finalNearPointColor = color8;
+  }
+  return finalNearPointColor;
+}
+function assembleArrow(backgroundColor, borderColor, arrowPosition) {
+  if (!isString(arrowPosition) || arrowPosition === "inside") {
+    return "";
+  }
+  borderColor = getFinalColor(borderColor);
+  const arrowPos = mirrowPos(arrowPosition);
+  let centerPos = "";
+  let rotate2 = 0;
+  if (["left", "right"].includes(arrowPos)) {
+    centerPos = `${arrowPos}:-6px;top:50%;transform:translateY(-50%)`;
+    rotate2 = arrowPos === "left" ? -225 : -45;
+  } else {
+    centerPos = `${arrowPos}:-6px;left:50%;transform:translateX(-50%)`;
+    rotate2 = arrowPos === "top" ? 225 : 45;
+  }
+  const styleCss = ['style="position:absolute;width:10px;height:10px;', `${centerPos}`, `rotate(${rotate2}deg);`, `border-bottom: ${borderColor} solid 1px;`, `border-right: ${borderColor} solid 1px;`, `background-color: ${backgroundColor};`, "box-shadow: 8px 8px 16px -3px #000", '"'];
+  return `<div ${styleCss.join("")}></div>`;
+}
 function assembleTransition(duration) {
   const transitionCurve = "cubic-bezier(0.23, 1, 0.32, 1)";
   const transitionText = "left " + duration + "s " + transitionCurve + ",top " + duration + "s " + transitionCurve;
@@ -52461,9 +53077,15 @@ function assembleCssText(tooltipModel) {
   const cssText = [];
   const transitionDuration = tooltipModel.get("transitionDuration");
   const backgroundColor = tooltipModel.get("backgroundColor");
+  const shadowBlur = tooltipModel.get("shadowBlur");
+  const shadowColor = tooltipModel.get("shadowColor");
+  const shadowOffsetX = tooltipModel.get("shadowOffsetX");
+  const shadowOffsetY = tooltipModel.get("shadowOffsetY");
   const textStyleModel = tooltipModel.getModel("textStyle");
   const padding = tooltipModel.get("padding");
-  transitionDuration && cssText.push(assembleTransition(transitionDuration));
+  const boxShadow = `${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`;
+  cssText.push("box-shadow:" + boxShadow);
+  transitionDuration && !["top", "left", "bottom", "right"].includes(tooltipModel.get("position")) && tooltipModel.get("trigger") !== "item" && cssText.push(assembleTransition(transitionDuration));
   if (backgroundColor) {
     if (env_default.canvasSupported) {
       cssText.push("background-Color:" + backgroundColor);
@@ -52555,17 +53177,23 @@ class TooltipHTMLContent {
       domStyle.position = "relative";
     }
   }
-  show(tooltipModel) {
+  show(tooltipModel, nearPointColor) {
     clearTimeout(this._hideTimeout);
     const el = this.el;
     const styleCoord = this._styleCoord;
-    el.style.cssText = gCssText + assembleCssText(tooltipModel) + ";left:" + styleCoord[0] + "px;top:" + styleCoord[1] + "px;" + (tooltipModel.get("extraCssText") || "");
+    const offset = el.offsetHeight / 2;
+    nearPointColor = getFinalColor(nearPointColor);
+    el.style.cssText = gCssText + assembleCssText(tooltipModel) + ";left:" + styleCoord[0] + "px;top:" + (styleCoord[1] - offset) + `px;border-color: ${nearPointColor};` + (tooltipModel.get("extraCssText") || "");
     el.style.display = el.innerHTML ? "block" : "none";
     el.style.pointerEvents = this._enterable ? "auto" : "none";
     this._show = true;
   }
-  setContent(content) {
-    this.el.innerHTML = content == null ? "" : content;
+  setContent(content, markers, tooltipModel, borderColor, arrowPosition) {
+    if (content == null) {
+      return;
+    }
+    this.el.innerHTML = content;
+    this.el.innerHTML += isString(arrowPosition) && tooltipModel.get("trigger") === "item" && !tooltipModel.get("confine") ? assembleArrow(tooltipModel.get("backgroundColor"), borderColor, arrowPosition) : "";
   }
   setEnterable(enterable) {
     this._enterable = enterable;
@@ -52585,12 +53213,12 @@ class TooltipHTMLContent {
     this.el.style.display = "none";
     this._show = false;
   }
-  hideLater(time) {
+  hideLater(time2) {
     if (this._show && !(this._inContent && this._enterable)) {
-      if (time) {
-        this._hideDelay = time;
+      if (time2) {
+        this._hideDelay = time2;
         this._show = false;
-        this._hideTimeout = setTimeout(bind(this.hide, this), time);
+        this._hideTimeout = setTimeout(bind(this.hide, this), time2);
       } else {
         this.hide();
       }
@@ -52636,7 +53264,7 @@ class TooltipRichContent {
     this.el.show();
     this._show = true;
   }
-  setContent(content, markerRich, tooltipModel) {
+  setContent(content, markerRich, tooltipModel, borderColor, arrowPosition) {
     if (this.el) {
       this._zr.remove(this.el);
     }
@@ -52664,7 +53292,7 @@ class TooltipRichContent {
         };
       }
       text11 = text11.substr(endId + 1);
-      startId = text11.indexOf("{marker");
+      startId = text11.indexOf(prefix);
     }
     this.el = new Text_default({
       style: {
@@ -52673,8 +53301,16 @@ class TooltipRichContent {
         lineHeight: 20,
         backgroundColor: tooltipModel.get("backgroundColor"),
         borderRadius: tooltipModel.get("borderRadius"),
+        borderWidth: 1,
+        borderColor,
+        shadowColor: tooltipModel.get("shadowColor"),
+        shadowBlur: tooltipModel.get("shadowBlur"),
+        shadowOffsetX: tooltipModel.get("shadowOffsetX"),
+        shadowOffsetY: tooltipModel.get("shadowOffsetY"),
         fill: tooltipModel.get(["textStyle", "color"]),
-        padding: tooltipModel.get("padding")
+        padding: tooltipModel.get("padding"),
+        verticalAlign: "middle",
+        align: "left"
       },
       z: tooltipModel.get("z")
     });
@@ -52717,12 +53353,12 @@ class TooltipRichContent {
     }
     this._show = false;
   }
-  hideLater(time) {
+  hideLater(time2) {
     if (this._show && !(this._inContent && this._enterable)) {
-      if (time) {
-        this._hideDelay = time;
+      if (time2) {
+        this._hideDelay = time2;
         this._show = false;
-        this._hideTimeout = setTimeout(bind(this.hide, this), time);
+        this._hideTimeout = setTimeout(bind(this.hide, this), time2);
       } else {
         this.hide();
       }
@@ -52773,7 +53409,7 @@ class TooltipView2 extends Component_default2 {
       tooltipContent = new TooltipHTMLContent_default(api.getDom(), api, {
         appendToBody: tooltipModel.get("appendToBody", true)
       });
-      this._newLine = "<br/>";
+      this._newLine = "";
     } else {
       tooltipContent = new TooltipRichContent_default(api);
       this._newLine = "\n";
@@ -52968,35 +53604,58 @@ class TooltipView2 extends Component_default2 {
           dataParams.axisIndex = item.axisIndex;
           dataParams.axisType = item.axisType;
           dataParams.axisId = item.axisId;
-          dataParams.axisValue = getAxisRawValue(axisModel.axis, axisValue);
+          dataParams.axisValue = getAxisRawValue(axisModel.axis, {
+            value: axisValue
+          });
           dataParams.axisValueLabel = valueLabel;
           dataParams.marker = getTooltipMarker({
             color: dataParams.color,
             renderMode
           });
-          if (dataParams) {
-            singleParamsList.push(dataParams);
-            const seriesTooltip = series.formatTooltip(dataIndex, true, null, renderMode);
-            let html;
-            if (isObject(seriesTooltip)) {
-              html = seriesTooltip.html;
-              const newMarkers = seriesTooltip.markers;
-              merge(markers, newMarkers);
-            } else {
-              html = seriesTooltip;
-            }
-            seriesDefaultHTML.push(html);
+          singleParamsList.push(dataParams);
+          const seriesTooltip = series.formatTooltip(dataIndex, true, null, renderMode);
+          let html;
+          if (isObject(seriesTooltip)) {
+            html = seriesTooltip.html;
+            const newMarkers = seriesTooltip.markers;
+            merge(markers, newMarkers);
+          } else {
+            html = seriesTooltip;
           }
+          dataParams.html = html;
+        });
+        switch (singleTooltipModel.get("order")) {
+          case "valueAsc":
+            singleParamsList.sort(function(a, b) {
+              return +a.data - +b.data;
+            });
+            break;
+          case "valueDesc":
+            singleParamsList.sort(function(a, b) {
+              return +b.data - +a.data;
+            });
+            break;
+          case "seriesDesc":
+            singleParamsList.reverse();
+            break;
+          case "seriesAsc":
+          default:
+            break;
+        }
+        each(singleParamsList, function(params) {
+          seriesDefaultHTML.push(params.html);
+          delete params.html;
         });
         const firstLine = valueLabel;
         if (renderMode !== "html") {
           singleDefaultHTML.push(seriesDefaultHTML.join(newLine));
         } else {
-          singleDefaultHTML.push((firstLine ? encodeHTML(firstLine) + newLine : "") + seriesDefaultHTML.join(newLine));
+          singleDefaultHTML.push((firstLine ? '<div style="font-size:12px;color:#6e7079;line-height:1;margin-top:-4px;">' + encodeHTML(firstLine) + "</div>" + newLine : "") + seriesDefaultHTML.reverse().join(newLine));
         }
+        singleDefaultHTML.push("<br/>");
       });
     }, this);
-    singleDefaultHTML.reverse();
+    singleDefaultHTML.pop();
     const singleDefaultHTMLStr = singleDefaultHTML.join(this._newLine + this._newLine);
     const positionExpr = e.position;
     this._showOrMove(singleTooltipModel, function() {
@@ -53009,24 +53668,25 @@ class TooltipView2 extends Component_default2 {
   }
   _showSeriesItemTooltip(e, el, dispatchAction3) {
     const ecModel = this._ecModel;
-    const ecData = getECData(el);
-    const seriesIndex = ecData.seriesIndex;
+    const ecData29 = getECData(el);
+    const seriesIndex = ecData29.seriesIndex;
     const seriesModel = ecModel.getSeriesByIndex(seriesIndex);
-    const dataModel = ecData.dataModel || seriesModel;
-    const dataIndex = ecData.dataIndex;
-    const dataType = ecData.dataType;
+    const dataModel = ecData29.dataModel || seriesModel;
+    const dataIndex = ecData29.dataIndex;
+    const dataType = ecData29.dataType;
     const data = dataModel.getData(dataType);
     const tooltipModel = buildTooltipModel([data.getItemModel(dataIndex), dataModel, seriesModel && (seriesModel.coordinateSystem || {}).model, this._tooltipModel]);
     const tooltipTrigger = tooltipModel.get("trigger");
     if (tooltipTrigger != null && tooltipTrigger !== "item") {
       return;
     }
+    const tooltipOrder = tooltipModel.get("order");
     const params = dataModel.getDataParams(dataIndex, dataType);
     params.marker = getTooltipMarker({
       color: params.color,
       renderMode: this._renderMode
     });
-    const seriesTooltip = dataModel.formatTooltip(dataIndex, false, dataType, this._renderMode);
+    const seriesTooltip = dataModel.formatTooltip(dataIndex, false, dataType, this._renderMode, tooltipOrder);
     let defaultHtml;
     let markers;
     if (isObject(seriesTooltip)) {
@@ -53050,7 +53710,7 @@ class TooltipView2 extends Component_default2 {
   }
   _showComponentItemTooltip(e, el, dispatchAction3) {
     let tooltipOpt = el.tooltip;
-    if (typeof tooltipOpt === "string") {
+    if (isString(tooltipOpt)) {
       const content = tooltipOpt;
       tooltipOpt = {
         content,
@@ -53077,21 +53737,34 @@ class TooltipView2 extends Component_default2 {
     const formatter = tooltipModel.get("formatter");
     positionExpr = positionExpr || tooltipModel.get("position");
     let html = defaultHtml;
-    if (formatter && typeof formatter === "string") {
+    const nearPoint = this._getNearestPoint([x, y], params, tooltipModel.get("trigger"));
+    if (formatter && isString(formatter)) {
       html = formatTpl(formatter, params, true);
-    } else if (typeof formatter === "function") {
+    } else if (isFunction(formatter)) {
       const callback = bind3(function(cbTicket, html2) {
         if (cbTicket === this._ticket) {
-          tooltipContent.setContent(html2, markers, tooltipModel);
+          tooltipContent.setContent(html2, markers, tooltipModel, nearPoint.color, positionExpr);
           this._updatePosition(tooltipModel, positionExpr, x, y, tooltipContent, params, el);
         }
       }, this);
       this._ticket = asyncTicket;
       html = formatter(params, asyncTicket, callback);
     }
-    tooltipContent.setContent(html, markers, tooltipModel);
-    tooltipContent.show(tooltipModel);
+    tooltipContent.setContent(html, markers, tooltipModel, nearPoint.color, positionExpr);
+    tooltipContent.show(tooltipModel, nearPoint.color);
     this._updatePosition(tooltipModel, positionExpr, x, y, tooltipContent, params, el);
+  }
+  _getNearestPoint(point, tooltipDataParams, trigger3) {
+    if (trigger3 === "axis" || isArray(tooltipDataParams)) {
+      return {
+        color: this._renderMode === "html" ? "#fff" : "none"
+      };
+    }
+    if (!isArray(tooltipDataParams)) {
+      return {
+        color: tooltipDataParams.color || tooltipDataParams.borderColor
+      };
+    }
   }
   _updatePosition(tooltipModel, positionExpr, x, y, content, params, el) {
     const viewWidth = this._api.getWidth();
@@ -53102,7 +53775,7 @@ class TooltipView2 extends Component_default2 {
     let vAlign = tooltipModel.get("verticalAlign");
     const rect = el && el.getBoundingRect().clone();
     el && rect.applyTransform(el.transform);
-    if (typeof positionExpr === "function") {
+    if (isFunction(positionExpr)) {
       positionExpr = positionExpr([x, y], params, content.el, rect, {
         viewSize: [viewWidth, viewHeight],
         contentSize: contentSize.slice()
@@ -53123,7 +53796,7 @@ class TooltipView2 extends Component_default2 {
       y = layoutRect.y;
       align = null;
       vAlign = null;
-    } else if (typeof positionExpr === "string" && el) {
+    } else if (isString(positionExpr) && el) {
       const pos = calcTooltipPosition(positionExpr, rect, contentSize);
       x = pos[0];
       y = pos[1];
@@ -53187,7 +53860,7 @@ function buildTooltipModel(modelCascade) {
       if (tooltipOpt instanceof Model_default) {
         tooltipOpt = tooltipOpt.get("tooltip", true);
       }
-      if (typeof tooltipOpt === "string") {
+      if (isString(tooltipOpt)) {
         tooltipOpt = {
           formatter: tooltipOpt
         };
@@ -53233,7 +53906,8 @@ function confineTooltipPosition(x, y, content, viewWidth, viewHeight) {
 function calcTooltipPosition(position2, rect, contentSize) {
   const domWidth = contentSize[0];
   const domHeight = contentSize[1];
-  const gap = 5;
+  const gap = 10;
+  const offset = 5;
   let x = 0;
   let y = 0;
   const rectWidth = rect.width;
@@ -53252,11 +53926,11 @@ function calcTooltipPosition(position2, rect, contentSize) {
       y = rect.y + rectHeight + gap;
       break;
     case "left":
-      x = rect.x - domWidth - gap;
+      x = rect.x - domWidth - gap - offset;
       y = rect.y + rectHeight / 2 - domHeight / 2;
       break;
     case "right":
-      x = rect.x + rectWidth + gap;
+      x = rect.x + rectWidth + gap + offset;
       y = rect.y + rectHeight / 2 - domHeight / 2;
   }
   return [x, y];
@@ -53715,7 +54389,7 @@ class BrushModel2 extends Component_default {
     }
   }
   setAreas(areas) {
-    if (__DEV__) {
+    if ('_DEV_') {
       assert(isArray(areas));
       each(areas, function(area) {
         assert(area.brushType, "Illegal areas");
@@ -53947,11 +54621,12 @@ TitleModel.defaultOption = {
   itemGap: 10,
   textStyle: {
     fontSize: 18,
-    fontWeight: "bolder",
-    color: "#333"
+    fontWeight: "bold",
+    color: "#464646"
   },
   subtextStyle: {
-    color: "#aaa"
+    fontSize: 12,
+    color: "#6E7079"
   }
 };
 Component_default.registerClass(TitleModel);
@@ -54437,7 +55112,9 @@ class SliderTimelineView2 extends TimelineView_default {
       const labelGroup = this._createGroup("_labelGroup");
       const axis2 = this._axis = this._createAxis(layoutInfo, timelineModel);
       timelineModel.formatTooltip = function(dataIndex) {
-        return encodeHTML(axis2.scale.getLabel(dataIndex));
+        return encodeHTML(axis2.scale.getLabel({
+          value: dataIndex
+        }));
       };
       each(["AxisLine", "AxisTick", "Control", "CurrentPointer"], function(name) {
         this["_render" + name](layoutInfo, mainGroup, axis2, timelineModel);
@@ -54587,7 +55264,9 @@ class SliderTimelineView2 extends TimelineView_default {
     const scale4 = createScaleByModel(timelineModel, axisType);
     scale4.getTicks = function() {
       return data.mapArray(["value"], function(value) {
-        return value;
+        return {
+          value
+        };
       });
     };
     const dataExtent = data.getDataExtent("value");
@@ -54641,26 +55320,26 @@ class SliderTimelineView2 extends TimelineView_default {
     const data = timelineModel.getData();
     const ticks = axis2.scale.getTicks();
     this._tickSymbols = [];
-    each(ticks, (value) => {
-      const tickCoord = axis2.dataToCoord(value);
-      const itemModel = data.getItemModel(value);
+    each(ticks, (tick) => {
+      const tickCoord = axis2.dataToCoord(tick.value);
+      const itemModel = data.getItemModel(tick.value);
       const itemStyleModel = itemModel.getModel("itemStyle");
       const hoverStyleModel = itemModel.getModel(["emphasis", "itemStyle"]);
       const progressStyleModel = itemModel.getModel(["progress", "itemStyle"]);
       const symbolOpt = {
         position: [tickCoord, 0],
-        onclick: bind(this._changeTimeline, this, value)
+        onclick: bind(this._changeTimeline, this, tick.value)
       };
       const el = giveSymbol(itemModel, itemStyleModel, group, symbolOpt);
       el.ensureState("emphasis").style = hoverStyleModel.getItemStyle();
       el.ensureState("progress").style = progressStyleModel.getItemStyle();
       enableHoverEmphasis(el);
-      const ecData = getECData(el);
+      const ecData29 = getECData(el);
       if (itemModel.get("tooltip")) {
-        ecData.dataIndex = value;
-        ecData.dataModel = timelineModel;
+        ecData29.dataIndex = tick.value;
+        ecData29.dataModel = timelineModel;
       } else {
-        ecData.dataIndex = ecData.dataModel = null;
+        ecData29.dataIndex = ecData29.dataModel = null;
       }
       this._tickSymbols.push(el);
     });
@@ -54946,8 +55625,6 @@ Component_default2.registerClass(SliderTimelineView2);
 registerPreprocessor(preprocessor_default3);
 
 // src/component/marker/MarkerModel.ts
-const addCommas2 = addCommas;
-const encodeHTML2 = encodeHTML;
 function fillLabel(opt) {
   defaultEmphasis(opt, "label", ["show"]);
 }
@@ -54959,7 +55636,7 @@ class MarkerModel7 extends Component_default {
     this.createdBySelf = false;
   }
   init(option, parentModel, ecModel) {
-    if (__DEV__) {
+    if ('_DEV_') {
       if (this.type === "marker") {
         throw new Error("Marker component is abstract component. Use markLine, markPoint, markArea instead.");
       }
@@ -55014,23 +55691,20 @@ class MarkerModel7 extends Component_default {
       }, this);
     }
   }
-  formatTooltip(dataIndex) {
+  formatTooltip(dataIndex, multipleSeries, dataType, renderMode) {
     const data = this.getData();
     const value = this.getRawValue(dataIndex);
-    const formattedValue = isArray(value) ? map2(value, addCommas2).join(", ") : addCommas2(value);
-    const name = data.getName(dataIndex);
-    let html = encodeHTML2(this.name);
+    const formattedValue = isArray(value) ? map2(value, addCommas).join(", ") : addCommas(value);
+    const name = encodeHTML(data.getName(dataIndex));
+    let html = `<div style="font-size:12px;line-height:1;margin:0 0 8px 0;">${encodeHTML(this.name)}</div>`;
     if (value != null || name) {
-      html += "<br />";
+      html += renderMode === "html" ? "" : "\n";
     }
     if (name) {
-      html += encodeHTML2(name);
-      if (value != null) {
-        html += " : ";
-      }
+      html += `<div style="line-height:1"><span style="font-size:12px;color:#6e7079;">${name}</span>`;
     }
     if (value != null) {
-      html += encodeHTML2(formattedValue);
+      html = renderMode === "html" ? concatTooltipHtml(html, formattedValue, true) + (name ? "</div>" : "") : html + formattedValue;
     }
     return html;
   }
@@ -55431,7 +56105,7 @@ const markLineTransform = function(seriesModel, coordSys, mlModel, item) {
         value
       }];
     } else {
-      if (__DEV__) {
+      if ('_DEV_') {
         logError("Invalid markLine data.");
       }
       itemArray = [];
@@ -56254,7 +56928,7 @@ class LegendView2 extends Component_default2 {
           }
         }, this);
       }
-      if (__DEV__) {
+      if ('_DEV_') {
         if (!legendDrawnMap.get(name)) {
           console.warn(name + " series not exists. Legend data should be same with series name or data name.");
         }
@@ -56439,7 +57113,7 @@ function isUseHoverLayer(api) {
   let emphasisState;
   let i = 0;
   const len2 = list.length;
-  while (!(emphasisState = list[i].states.emphasis) && i < len2) {
+  while (i < len2 && !(emphasisState = list[i].states.emphasis)) {
     i++;
   }
   return emphasisState && emphasisState.hoverLayer;
@@ -56883,7 +57557,7 @@ SliderZoomModel.defaultOption = inheritDefaultOption(DataZoomModel_default.defau
   realtime: true,
   zoomLock: false,
   textStyle: {
-    color: "#333"
+    color: "#6E7079"
   },
   brushSelect: true,
   brushStyle: {
@@ -57227,7 +57901,7 @@ class SliderZoomView extends DataZoomView_default {
       let iconStr = dataZoomModel.get("handleIcon");
       if (!symbolBuildProxies[iconStr] && iconStr.indexOf("path://") < 0) {
         iconStr = "path://" + iconStr;
-        if (__DEV__) {
+        if ('_DEV_') {
           deprecateLog("handleIcon now needs 'path://' prefix when using a path string");
         }
       }
@@ -57422,7 +58096,9 @@ class SliderZoomView extends DataZoomView_default {
     if (labelPrecision == null || labelPrecision === "auto") {
       labelPrecision = axis2.getPixelPrecision();
     }
-    const valueStr = value == null || isNaN(value) ? "" : axis2.type === "category" || axis2.type === "time" ? axis2.scale.getLabel(Math.round(value)) : value.toFixed(Math.min(labelPrecision, 20));
+    const valueStr = value == null || isNaN(value) ? "" : axis2.type === "category" || axis2.type === "time" ? axis2.scale.getLabel({
+      value: Math.round(value)
+    }) : value.toFixed(Math.min(labelPrecision, 20));
     return isFunction(labelFormatter) ? labelFormatter(value, valueStr) : isString(labelFormatter) ? labelFormatter.replace("{value}", valueStr) : valueStr;
   }
   _showDataInfo(showOrHide) {
@@ -58556,7 +59232,6 @@ const linearMap2 = linearMap;
 const each11 = each;
 const mathMin7 = Math.min;
 const mathMax7 = Math.max;
-const getECData2 = getECData;
 const HOVER_LINK_SIZE = 12;
 const HOVER_LINK_OUT = 6;
 class ContinuousView extends VisualMapView_default {
@@ -59022,16 +59697,16 @@ class ContinuousView extends VisualMapView_default {
   _hoverLinkFromSeriesMouseOver(e) {
     const el = e.target;
     const visualMapModel = this.visualMapModel;
-    if (!el || getECData2(el).dataIndex == null) {
+    if (!el || getECData(el).dataIndex == null) {
       return;
     }
-    const ecData = getECData2(el);
-    const dataModel = this.ecModel.getSeriesByIndex(ecData.seriesIndex);
+    const ecData29 = getECData(el);
+    const dataModel = this.ecModel.getSeriesByIndex(ecData29.seriesIndex);
     if (!visualMapModel.isTargetSeries(dataModel)) {
       return;
     }
-    const data = dataModel.getData(ecData.dataType);
-    const value = data.get(visualMapModel.getDataDimension(data), ecData.dataIndex);
+    const data = dataModel.getData(ecData29.dataType);
+    const value = data.get(visualMapModel.getDataDimension(data), ecData29.dataIndex);
     if (!isNaN(value)) {
       this._showIndicator(value, value);
     }
@@ -59415,7 +60090,7 @@ const resetMethods = {
         }
         useMinMax[0] && interval[1] === Infinity && (close[0] = 0);
         useMinMax[1] && interval[0] === -Infinity && (close[1] = 0);
-        if (__DEV__) {
+        if ('_DEV_') {
           if (interval[0] > interval[1]) {
             console.warn("Piece " + index + "is illegal: " + interval + " lower bound should not greater then uppper bound.");
           }
@@ -59649,13 +60324,23 @@ function bindStyle(svgEl, style2, el) {
     attr(svgEl, "stroke", stroke);
     const strokeWidth = style2.lineWidth;
     const strokeScale = style2.strokeNoScale ? el.getLineScale() : 1;
-    attr(svgEl, "stroke-width", strokeWidth / strokeScale + "");
+    attr(svgEl, "stroke-width", (strokeScale ? strokeWidth / strokeScale : 0) + "");
     attr(svgEl, "paint-order", style2.strokeFirst ? "stroke" : "fill");
     attr(svgEl, "stroke-opacity", (style2.strokeOpacity != null ? style2.strokeOpacity * opacity : opacity) + "");
-    const lineDash = style2.lineDash;
+    let lineDash = style2.lineDash;
     if (lineDash) {
-      attr(svgEl, "stroke-dasharray", style2.lineDash.join(","));
-      attr(svgEl, "stroke-dashoffset", mathRound(style2.lineDashOffset || 0) + "");
+      let lineDashOffset = style2.lineDashOffset;
+      if (strokeScale && strokeScale !== 1) {
+        lineDash = map2(lineDash, function(rawVal) {
+          return rawVal / strokeScale;
+        });
+        if (lineDashOffset) {
+          lineDashOffset /= strokeScale;
+          lineDashOffset = mathRound(lineDashOffset);
+        }
+      }
+      attr(svgEl, "stroke-dasharray", lineDash.join(","));
+      attr(svgEl, "stroke-dashoffset", (lineDashOffset || 0) + "");
     } else {
       attr(svgEl, "stroke-dasharray", "");
     }
@@ -60719,7 +61404,7 @@ __export(exports, {
   getInstanceByDom: () => getInstanceByDom,
   getInstanceById: () => getInstanceById,
   getMap: () => getMap,
-  graphic: () => graphic74,
+  graphic: () => graphic69,
   helper: () => helper_exports,
   init: () => init3,
   matrix: () => matrix_exports,
@@ -60738,6 +61423,7 @@ __export(exports, {
   registerVisual: () => registerVisual,
   setCanvasCreator: () => setCanvasCreator,
   throttle: () => throttle2,
+  time: () => time_exports,
   util: () => ecUtil,
   vector: () => vector_exports,
   version: () => version2,
