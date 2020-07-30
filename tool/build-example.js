@@ -133,7 +133,7 @@ async function takeScreenshot(browser, theme, rootDir, basename) {
 
         var exampleList = [];
 
-        const threadNum = 8;
+        const threadNum = 16;
         let buckets = [];
         for (var i = 0; i < files.length;) {
             const bucket = [];
@@ -206,7 +206,9 @@ async function takeScreenshot(browser, theme, rootDir, basename) {
                         throw new Error(e.toString());
                     }
                 }
-                await Promise.all(promises);
+                if (promises.length) {
+                    await Promise.all(promises);
+                }
             }
         }
 
