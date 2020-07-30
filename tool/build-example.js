@@ -52,6 +52,64 @@ var BUILD_THUMBS = sourceFolder === 'data' && !args.no_thumb;
 var BASE_PATH = 'file://' + __dirname;
 var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
 
+
+async function takeScreenshot(browser, theme, rootDir, basename) {
+    var thumbFolder = (theme !== 'default') ? ('thumb-' + theme) : 'thumb';
+    var page = await browser.newPage();
+    page.exposeFunction('readLocalFile', async (filePath) => {
+        filePath = filePath.replace(/^file:\/*?/, '');
+        return new Promise((resolve, reject) => {
+            fs.readFile(filePath, 'utf8', (err, text) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(text);
+                }
+            });
+        });
+    });
+    await page.setViewport({
+        width: 600,
+        height: 450
+        // width: 700,
+        // height: 525
+    });
+    var url = `${SCREENSHOT_PAGE_URL}?c=${basename}&s=${sourceFolder}&t=${theme}`;
+    const resourceRootPath = path.join(BASE_PATH, '../public/');
+    // console.log(url);
+    await page.evaluateOnNewDocument(function (resourceRootPath) {
+        window.ROOT_PATH = resourceRootPath;
+    }, resourceRootPath);
+    // page.on('console', msg => {
+    //     var args = msg.args();
+    //     var msg = ['[pageconsole]'].concat(args.map(v => v + ''));
+    //     console.log.apply(console, msg);
+    // });
+    page.on('pageerror', function (err) {
+        console.error('[pageerror in]', url);
+        console.log(err.toString());
+    });
+    // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    console.log(`Generating ${theme} thumbs.....${basename}`);
+    // https://stackoverflow.com/questions/46160929/puppeteer-wait-for-all-images-to-load-then-take-screenshot
+    try {
+        await page.goto(url, {'waitUntil' : 'networkidle0'});
+        await waitTime(200);
+        console.log(`${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`);
+        await page.screenshot({
+            path: `${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`,
+            type: 'jpeg',
+            quality: 80
+        });
+    }
+    catch (e) {
+        console.error(url);
+        console.error(e.toString());
+    }
+    await page.close();
+}
+
 (async () => {
     // https://github.com/GoogleChrome/puppeteer/issues/1260
     if (BUILD_THUMBS) {
@@ -75,115 +133,80 @@ var SCREENSHOT_PAGE_URL = path.join(BASE_PATH, `../public/screenshot.html`);
 
         var exampleList = [];
 
-        for (var fileName of files) {
-            var baseDir = path.dirname(fileName);
-            var basename = path.basename(fileName, '.js');
+        const threadNum = 8;
+        let buckets = [];
+        for (var i = 0; i < files.length;) {
+            const bucket = [];
+            for (let k = 0; k < threadNum; k++) {
+                const fileName = files[i++];
+                if (!fileName) {
+                    continue;
+                }
+                var basename = path.basename(fileName, '.js');
 
-            var jsCode = fs.readFileSync(fileName, 'utf-8');
-
-            // Remove mapbox temporary
-            if (basename.indexOf('mapbox') >= 0
-                || basename.indexOf('shanghai') >= 0
-                || basename === 'lines3d-taxi-routes-of-cape-town'
-                || basename === 'lines3d-taxi-chengdu'
-                || basename === 'map3d-colorful-cities'
-            ) {
-                continue;
-            }
-
-            try {
-                var mdText = fs.readFileSync(`${rootDir}public/${sourceFolder}/meta/${basename}.md`, 'utf-8');
-                var fmResult = fm(mdText);
-            }
-            catch (e) {
-                var fmResult = {
-                    attributes: {}
-                };
-            }
-
-            // var descHTML = marked(fmResult.body);
-
-            // Do screenshot
-            if (BUILD_THUMBS
-                && screenshotBlackList.indexOf(basename) < 0
-                && (!matchPattern || matchPattern.some(function (pattern) {
-                    return minimatch(basename, pattern);
-                }))
-            ) {
-
-                for (var theme of themeList) {
-                    var thumbFolder = (theme !== 'default') ? ('thumb-' + theme) : 'thumb';
-                    var page = await browser.newPage();
-                    page.exposeFunction('readLocalFile', async (filePath) => {
-                        filePath = filePath.replace(/^file:\/*?/, '');
-                        return new Promise((resolve, reject) => {
-                            fs.readFile(filePath, 'utf8', (err, text) => {
-                                if (err) {
-                                    reject(err);
-                                }
-                                else {
-                                    resolve(text);
-                                }
-                            });
-                        });
+                if (BUILD_THUMBS
+                    && screenshotBlackList.indexOf(basename) < 0
+                    && (!matchPattern || matchPattern.some(function (pattern) {
+                        return minimatch(basename, pattern);
+                    }))
+                ) {
+                    bucket.push({
+                        basename
                     });
-                    await page.setViewport({
-                        width: 600,
-                        height: 450
-                        // width: 700,
-                        // height: 525
-                    });
-                    var url = `${SCREENSHOT_PAGE_URL}?c=${basename}&s=${sourceFolder}&t=${theme}`;
-                    const resourceRootPath = path.join(BASE_PATH, '../public/');
-                    // console.log(url);
-                    await page.evaluateOnNewDocument(function (resourceRootPath) {
-                        window.ROOT_PATH = resourceRootPath;
-                    }, resourceRootPath);
-                    // page.on('console', msg => {
-                    //     var args = msg.args();
-                    //     var msg = ['[pageconsole]'].concat(args.map(v => v + ''));
-                    //     console.log.apply(console, msg);
-                    // });
-                    page.on('pageerror', function (err) {
-                        console.error('[pageerror in]', url);
-                        console.log(err.toString());
-                    });
-                    // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
-                    console.log(`Generating ${theme} thumbs.....${basename}`);
-                    // https://stackoverflow.com/questions/46160929/puppeteer-wait-for-all-images-to-load-then-take-screenshot
+                }
+            }
+            buckets.push(bucket);
+        }
+
+        for (let theme of themeList) {
+            for (let bucket of buckets) {
+                const promises = [];
+
+                for (var {basename} of bucket) {
+
+                    // Remove mapbox temporary
+                    if (basename.indexOf('mapbox') >= 0
+                        || basename.indexOf('shanghai') >= 0
+                        || basename === 'lines3d-taxi-routes-of-cape-town'
+                        || basename === 'lines3d-taxi-chengdu'
+                        || basename === 'map3d-colorful-cities'
+                    ) {
+                        continue;
+                    }
+
                     try {
-                        await page.goto(url, {'waitUntil' : 'networkidle0'});
-                        await waitTime(200);
-                        console.log(`${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`);
-                        await page.screenshot({
-                            path: `${rootDir}public/${sourceFolder}/${thumbFolder}/${basename}.jpg`,
-                            type: 'jpeg',
-                            quality: 80
+                        var mdText = fs.readFileSync(`${rootDir}public/${sourceFolder}/meta/${basename}.md`, 'utf-8');
+                        var fmResult = fm(mdText);
+                    }
+                    catch (e) {
+                        var fmResult = {
+                            attributes: {}
+                        };
+                    }
+
+                    // var descHTML = marked(fmResult.body);
+
+                    // Do screenshot
+                    promises.push(takeScreenshot(browser, theme, rootDir, basename));
+
+                    try {
+                        var difficulty = fmResult.attributes.difficulty != null ? fmResult.attributes.difficulty : 10;
+                        var category = fmResult.attributes.category.split(',').map(name => {
+                            return name.trim();
+                        });
+                        exampleList.push({
+                            category: category,
+                            id: basename,
+                            theme: fmResult.attributes.theme,
+                            title: fmResult.attributes.title,
+                            difficulty: +difficulty
                         });
                     }
                     catch (e) {
-                        console.error(url);
-                        console.error(e.toString());
+                        throw new Error(e.toString());
                     }
-                    await page.close();
                 }
-            }
-
-            try {
-                var difficulty = fmResult.attributes.difficulty != null ? fmResult.attributes.difficulty : 10;
-                var category = fmResult.attributes.category.split(',').map(name => {
-                    return name.trim();
-                });
-                exampleList.push({
-                    category: category,
-                    id: basename,
-                    theme: fmResult.attributes.theme,
-                    title: fmResult.attributes.title,
-                    difficulty: +difficulty
-                });
-            }
-            catch (e) {
-                throw new Error(e.toString());
+                await Promise.all(promises);
             }
         }
 
