@@ -6,7 +6,7 @@ var marked = require('marked');
 var fm = require('front-matter');
 var puppeteer = require('puppeteer');
 var argparse = require('argparse');
-var minimatch = require('minimatch');
+var minimatch = require('minimatch')
 
 var parser = new argparse.ArgumentParser({
     addHelp: true
@@ -90,7 +90,7 @@ async function takeScreenshot(browser, theme, rootDir, basename) {
         console.error('[pageerror in]', url);
         console.log(err.toString());
     });
-    // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     console.log(`Generating ${theme} thumbs.....${basename}`);
     // https://stackoverflow.com/questions/46160929/puppeteer-wait-for-all-images-to-load-then-take-screenshot
     try {

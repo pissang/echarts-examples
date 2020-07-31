@@ -326,7 +326,8 @@ function _clearChartEvents() {
 var run = function (ignoreOptionNotChange) {
     if (!gb.chart) {
         gb.chart = echarts.init($('#chart-panel')[0], configs.theme, {
-            renderer: configs.renderer || 'canvas'
+            renderer: configs.renderer || 'canvas',
+            locale: configs.locale
         });
         _wrapOnMethods(gb.chart);
     }
